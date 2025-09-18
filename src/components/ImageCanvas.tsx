@@ -4,10 +4,13 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
 import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser, Brush } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { blobToBase64 } from '../utils/imageUtils';
+import { generateId } from '../utils/imageUtils';
 
 export const ImageCanvas: React.FC = () => {
   const {
-    canvasImage,
+    canvasImages,
+    canvasGridLayout,
     canvasZoom,
     setCanvasZoom,
     canvasPan,
@@ -20,46 +23,52 @@ export const ImageCanvas: React.FC = () => {
     selectedTool,
     isGenerating,
     brushSize,
-    setBrushSize
+    setBrushSize,
+    addCanvasImage,
+    reorderCanvasImages
   } = useAppStore();
 
   const stageRef = useRef<any>(null);
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<number[]>([]);
   const [brushMode, setBrushMode] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  // Load image and auto-fit when canvasImage changes
+  // Load images and auto-fit when canvasImages changes
+  const [gridImages, setGridImages] = useState<(HTMLImageElement | null)[]>([]);
+
   useEffect(() => {
-    if (canvasImage) {
-      const img = new window.Image();
-      img.onload = () => {
-        setImage(img);
-        
-        // Only auto-fit if this is a new image (no existing zoom/pan state)
+    if (canvasImages.length > 0) {
+      const loadImages = async () => {
+        const images = await Promise.all(
+          canvasImages.map(async (asset) => {
+            try {
+              const img = new window.Image();
+              return new Promise<HTMLImageElement>((resolve, reject) => {
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = asset.url;
+              });
+            } catch {
+              return null;
+            }
+          })
+        );
+        setGridImages(images);
+
+        // Auto-fit grid if this is new content
         if (canvasZoom === 1 && canvasPan.x === 0 && canvasPan.y === 0) {
-          // Auto-fit image to canvas
           const isMobile = window.innerWidth < 768;
-          const padding = isMobile ? 0.9 : 0.8; // Use more of the screen on mobile
-          
-          const scaleX = (stageSize.width * padding) / img.width;
-          const scaleY = (stageSize.height * padding) / img.height;
-          
-          const maxZoom = isMobile ? 0.3 : 0.8;
-          const optimalZoom = Math.min(scaleX, scaleY, maxZoom);
-          
-          setCanvasZoom(optimalZoom);
-          
-          // Center the image
+          setCanvasZoom(isMobile ? 0.3 : 0.6);
           setCanvasPan({ x: 0, y: 0 });
         }
       };
-      img.src = canvasImage;
+      loadImages();
     } else {
-      setImage(null);
+      setGridImages([]);
     }
-  }, [canvasImage, stageSize, setCanvasZoom, setCanvasPan, canvasZoom, canvasPan]);
+  }, [canvasImages, stageSize, setCanvasZoom, setCanvasPan, canvasZoom, canvasPan]);
 
   // Handle stage resize
   useEffect(() => {
@@ -79,48 +88,56 @@ export const ImageCanvas: React.FC = () => {
   }, []);
 
   const handleMouseDown = (e: any) => {
-    if (!brushMode || !image) return;
+    if (!brushMode || gridImages.length === 0) return;
 
     setIsDrawing(true);
     const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
-
-    // Use Konva's getRelativePointerPosition for accurate coordinates
     const relativePos = stage.getRelativePointerPosition();
 
-    // Calculate image bounds on the stage
-    const imageX = (stageSize.width / canvasZoom - image.width) / 2;
-    const imageY = (stageSize.height / canvasZoom - image.height) / 2;
+    // Calculate grid bounds for first image
+    const { columns } = canvasGridLayout;
+    const gridSize = 300;
+    const spacing = 20;
+    const totalWidth = columns * gridSize + (columns - 1) * spacing;
+    const totalHeight = Math.ceil(gridImages.length / columns) * gridSize +
+                      (Math.ceil(gridImages.length / columns) - 1) * spacing;
 
-    // Convert to image-relative coordinates
-    const relativeX = relativePos.x - imageX;
-    const relativeY = relativePos.y - imageY;
+    const startX = (stageSize.width / canvasZoom - totalWidth) / 2;
+    const startY = (stageSize.height / canvasZoom - totalHeight) / 2;
 
-    // Check if click is within image bounds
-    if (relativeX >= 0 && relativeX <= image.width && relativeY >= 0 && relativeY <= image.height) {
+    // Convert to grid-relative coordinates
+    const relativeX = relativePos.x - startX;
+    const relativeY = relativePos.y - startY;
+
+    // Check if click is within grid bounds
+    if (relativeX >= 0 && relativeX <= totalWidth && relativeY >= 0 && relativeY <= totalHeight) {
       setCurrentStroke([relativeX, relativeY]);
     }
   };
 
   const handleMouseMove = (e: any) => {
-    if (!isDrawing || !brushMode || !image) return;
+    if (!isDrawing || !brushMode || gridImages.length === 0) return;
 
     const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
-
-    // Use Konva's getRelativePointerPosition for accurate coordinates
     const relativePos = stage.getRelativePointerPosition();
 
-    // Calculate image bounds on the stage
-    const imageX = (stageSize.width / canvasZoom - image.width) / 2;
-    const imageY = (stageSize.height / canvasZoom - image.height) / 2;
+    // Calculate grid bounds
+    const { columns } = canvasGridLayout;
+    const gridSize = 300;
+    const spacing = 20;
+    const totalWidth = columns * gridSize + (columns - 1) * spacing;
+    const totalHeight = Math.ceil(gridImages.length / columns) * gridSize +
+                      (Math.ceil(gridImages.length / columns) - 1) * spacing;
 
-    // Convert to image-relative coordinates
-    const relativeX = relativePos.x - imageX;
-    const relativeY = relativePos.y - imageY;
+    const startX = (stageSize.width / canvasZoom - totalWidth) / 2;
+    const startY = (stageSize.height / canvasZoom - totalHeight) / 2;
 
-    // Check if within image bounds
-    if (relativeX >= 0 && relativeX <= image.width && relativeY >= 0 && relativeY <= image.height) {
+    // Convert to grid-relative coordinates
+    const relativeX = relativePos.x - startX;
+    const relativeY = relativePos.y - startY;
+
+    // Check if within grid bounds
+    if (relativeX >= 0 && relativeX <= totalWidth && relativeY >= 0 && relativeY <= totalHeight) {
       setCurrentStroke([...currentStroke, relativeX, relativeY]);
     }
   };
@@ -147,24 +164,57 @@ export const ImageCanvas: React.FC = () => {
   };
 
   const handleReset = () => {
-    if (image) {
+    if (gridImages.length > 0) {
       const isMobile = window.innerWidth < 768;
-      const padding = isMobile ? 0.9 : 0.8;
-      const scaleX = (stageSize.width * padding) / image.width;
-      const scaleY = (stageSize.height * padding) / image.height;
-      const maxZoom = isMobile ? 0.3 : 0.8;
-      const optimalZoom = Math.min(scaleX, scaleY, maxZoom);
-      
-      setCanvasZoom(optimalZoom);
+      setCanvasZoom(isMobile ? 0.3 : 0.6);
       setCanvasPan({ x: 0, y: 0 });
     }
   };
 
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+    for (const file of imageFiles) {
+      try {
+        const base64 = await blobToBase64(file);
+        const asset = {
+          id: generateId(),
+          type: 'original' as const,
+          url: `data:${file.type};base64,${base64}`,
+          mime: file.type,
+          width: 1024, // Will be updated when image loads
+          height: 1024,
+          checksum: base64.slice(0, 32)
+        };
+        addCanvasImage(asset);
+      } catch (error) {
+        console.error('Failed to process dropped image:', error);
+      }
+    }
+  };
+
   const handleDownload = () => {
-    if (canvasImage) {
-      if (canvasImage.startsWith('data:')) {
+    if (canvasImages.length > 0) {
+      // Download first image for now - could be enhanced to download all or composite
+      const firstImage = canvasImages[0];
+      if (firstImage.url.startsWith('data:')) {
         const link = document.createElement('a');
-        link.href = canvasImage;
+        link.href = firstImage.url;
         link.download = `nano-banana-${Date.now()}.png`;
         document.body.appendChild(link);
         link.click();
@@ -237,7 +287,7 @@ export const ImageCanvas: React.FC = () => {
               <span className="hidden sm:inline ml-2">Masks</span>
             </Button>
             
-            {canvasImage && (
+            {canvasImages.length > 0 && (
               <Button variant="secondary" size="sm" onClick={handleDownload}>
                 <Download className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Download</span>
@@ -248,11 +298,17 @@ export const ImageCanvas: React.FC = () => {
       </div>
 
       {/* Canvas Area */}
-      <div 
-        id="canvas-container" 
-        className="flex-1 relative overflow-hidden bg-gray-800"
+      <div
+        id="canvas-container"
+        className={cn(
+          "flex-1 relative overflow-hidden bg-gray-800",
+          isDragOver && "bg-gray-700 border-2 border-dashed border-blue-400"
+        )}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
-        {!image && !isGenerating && (
+        {canvasImages.length === 0 && !isGenerating && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
               <div className="text-6xl mb-4">🍌</div>
@@ -260,9 +316,9 @@ export const ImageCanvas: React.FC = () => {
                 Welcome to Nano Banana Framework
               </h2>
               <p className="text-gray-500 max-w-md">
-                {selectedTool === 'generate' 
-                  ? 'Start by describing what you want to create in the prompt box'
-                  : 'Upload an image to begin editing'
+                {selectedTool === 'generate'
+                  ? 'Start by describing what you want to create in the prompt box, or drag & drop images here'
+                  : 'Upload an image to begin editing, or drag & drop images here'
                 }
               </p>
             </div>
@@ -301,33 +357,81 @@ export const ImageCanvas: React.FC = () => {
           }}
         >
           <Layer>
-            {image && (
-              <KonvaImage
-                image={image}
-                x={(stageSize.width / canvasZoom - image.width) / 2}
-                y={(stageSize.height / canvasZoom - image.height) / 2}
-              />
-            )}
+            {/* Grid Images */}
+            {gridImages.map((img, index) => {
+              if (!img) return null;
+
+              const { order, columns } = canvasGridLayout;
+              const displayIndex = order.indexOf(index);
+              if (displayIndex === -1) return null;
+
+              const row = Math.floor(displayIndex / columns);
+              const col = displayIndex % columns;
+              const gridSize = 300; // Size of each grid cell
+              const spacing = 20;
+
+              const totalWidth = columns * gridSize + (columns - 1) * spacing;
+              const totalHeight = Math.ceil(gridImages.length / columns) * gridSize +
+                                (Math.ceil(gridImages.length / columns) - 1) * spacing;
+
+              const startX = (stageSize.width / canvasZoom - totalWidth) / 2;
+              const startY = (stageSize.height / canvasZoom - totalHeight) / 2;
+
+              const x = startX + col * (gridSize + spacing);
+              const y = startY + row * (gridSize + spacing);
+
+              return (
+                <KonvaImage
+                  key={`grid-${index}`}
+                  image={img}
+                  x={x}
+                  y={y}
+                  width={gridSize}
+                  height={gridSize}
+                  cornerRadius={8}
+                  crop={{
+                    x: 0,
+                    y: 0,
+                    width: img.width,
+                    height: img.height
+                  }}
+                />
+              );
+            })}
             
-            {/* Brush Strokes */}
-            {showMasks && brushStrokes.map((stroke) => (
-              <Line
-                key={stroke.id}
-                points={stroke.points}
-                stroke="#A855F7"
-                strokeWidth={stroke.brushSize}
-                tension={0.5}
-                lineCap="round"
-                lineJoin="round"
-                globalCompositeOperation="source-over"
-                opacity={0.6}
-                x={(stageSize.width / canvasZoom - (image?.width || 0)) / 2}
-                y={(stageSize.height / canvasZoom - (image?.height || 0)) / 2}
-              />
-            ))}
+            {/* Brush Strokes - Only on first image for now */}
+            {showMasks && brushStrokes.map((stroke) => {
+              if (gridImages.length === 0) return null;
+
+              const { columns } = canvasGridLayout;
+              const gridSize = 300;
+              const spacing = 20;
+              const totalWidth = columns * gridSize + (columns - 1) * spacing;
+              const totalHeight = Math.ceil(gridImages.length / columns) * gridSize +
+                                (Math.ceil(gridImages.length / columns) - 1) * spacing;
+
+              const startX = (stageSize.width / canvasZoom - totalWidth) / 2;
+              const startY = (stageSize.height / canvasZoom - totalHeight) / 2;
+
+              return (
+                <Line
+                  key={stroke.id}
+                  points={stroke.points}
+                  stroke="#A855F7"
+                  strokeWidth={stroke.brushSize}
+                  tension={0.5}
+                  lineCap="round"
+                  lineJoin="round"
+                  globalCompositeOperation="source-over"
+                  opacity={0.6}
+                  x={startX}
+                  y={startY}
+                />
+              );
+            })}
             
             {/* Current stroke being drawn */}
-            {isDrawing && currentStroke.length > 2 && (
+            {isDrawing && currentStroke.length > 2 && gridImages.length > 0 && (
               <Line
                 points={currentStroke}
                 stroke="#A855F7"
@@ -337,8 +441,8 @@ export const ImageCanvas: React.FC = () => {
                 lineJoin="round"
                 globalCompositeOperation="source-over"
                 opacity={0.6}
-                x={(stageSize.width / canvasZoom - (image?.width || 0)) / 2}
-                y={(stageSize.height / canvasZoom - (image?.height || 0)) / 2}
+                x={(stageSize.width / canvasZoom - canvasGridLayout.columns * 320) / 2}
+                y={(stageSize.height / canvasZoom - Math.ceil(gridImages.length / canvasGridLayout.columns) * 320) / 2}
               />
             )}
           </Layer>
@@ -349,6 +453,9 @@ export const ImageCanvas: React.FC = () => {
       <div className="p-3 border-t border-gray-800 bg-gray-950">
         <div className="flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center space-x-4">
+            {canvasImages.length > 0 && (
+              <span className="text-green-400">{canvasImages.length} image{canvasImages.length !== 1 ? 's' : ''}</span>
+            )}
             {brushStrokes.length > 0 && (
               <span className="text-yellow-400">{brushStrokes.length} brush stroke{brushStrokes.length !== 1 ? 's' : ''}</span>
             )}

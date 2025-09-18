@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { Project, Generation, Edit, SegmentationMask, BrushStroke } from '../types';
+import { Project, Generation, Edit, SegmentationMask, BrushStroke, Asset, GridLayout } from '../types';
 
 interface AppState {
   // Current project
   currentProject: Project | null;
   
   // Canvas state
-  canvasImage: string | null;
+  canvasImages: Asset[]; // Multiple images in grid layout
+  canvasGridLayout: GridLayout;
   canvasZoom: number;
   canvasPan: { x: number; y: number };
   
@@ -40,7 +41,11 @@ interface AppState {
   
   // Actions
   setCurrentProject: (project: Project | null) => void;
-  setCanvasImage: (url: string | null) => void;
+  setCanvasImages: (images: Asset[]) => void;
+  addCanvasImage: (image: Asset) => void;
+  removeCanvasImage: (index: number) => void;
+  reorderCanvasImages: (fromIndex: number, toIndex: number) => void;
+  setCanvasGridLayout: (layout: GridLayout) => void;
   setCanvasZoom: (zoom: number) => void;
   setCanvasPan: (pan: { x: number; y: number }) => void;
   
@@ -80,7 +85,8 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       // Initial state
       currentProject: null,
-      canvasImage: null,
+      canvasImages: [],
+      canvasGridLayout: { order: [], columns: 1 },
       canvasZoom: 1,
       canvasPan: { x: 0, y: 0 },
       
@@ -107,7 +113,41 @@ export const useAppStore = create<AppState>()(
       
       // Actions
       setCurrentProject: (project) => set({ currentProject: project }),
-      setCanvasImage: (url) => set({ canvasImage: url }),
+      setCanvasImages: (images) => set((state) => {
+        const order = images.map((_, index) => index);
+        const columns = Math.ceil(Math.sqrt(images.length));
+        return {
+          canvasImages: images,
+          canvasGridLayout: { order, columns }
+        };
+      }),
+      addCanvasImage: (image) => set((state) => {
+        const newImages = [...state.canvasImages, image];
+        const order = newImages.map((_, index) => index);
+        const columns = Math.ceil(Math.sqrt(newImages.length));
+        return {
+          canvasImages: newImages,
+          canvasGridLayout: { order, columns }
+        };
+      }),
+      removeCanvasImage: (index) => set((state) => {
+        const newImages = state.canvasImages.filter((_, i) => i !== index);
+        const order = newImages.map((_, index) => index);
+        const columns = Math.ceil(Math.sqrt(newImages.length));
+        return {
+          canvasImages: newImages,
+          canvasGridLayout: { order, columns }
+        };
+      }),
+      reorderCanvasImages: (fromIndex, toIndex) => set((state) => {
+        const newOrder = [...state.canvasGridLayout.order];
+        const [moved] = newOrder.splice(fromIndex, 1);
+        newOrder.splice(toIndex, 0, moved);
+        return {
+          canvasGridLayout: { ...state.canvasGridLayout, order: newOrder }
+        };
+      }),
+      setCanvasGridLayout: (layout) => set({ canvasGridLayout: layout }),
       setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
       setCanvasPan: (pan) => set({ canvasPan: pan }),
       
@@ -160,7 +200,8 @@ export const useAppStore = create<AppState>()(
       clearSelection: () => set({
         selectedGenerationId: null,
         selectedEditId: null,
-        canvasImage: null,
+        canvasImages: [],
+        canvasGridLayout: { order: [], columns: 1 },
         brushStrokes: [],
         editReferenceImages: [],
         currentPrompt: ''

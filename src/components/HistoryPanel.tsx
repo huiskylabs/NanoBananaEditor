@@ -10,7 +10,7 @@ import { Generation, Edit } from '../types';
 export const HistoryPanel: React.FC = () => {
   const {
     currentProject,
-    canvasImage,
+    canvasImages,
     selectedGenerationId,
     selectedEditId,
     selectGeneration,
@@ -18,7 +18,7 @@ export const HistoryPanel: React.FC = () => {
     clearSelection,
     showHistory,
     setShowHistory,
-    setCanvasImage,
+    setCanvasImages,
     selectedTool,
     historyPanelWidth,
     setCurrentPrompt
@@ -373,8 +373,8 @@ export const HistoryPanel: React.FC = () => {
       selectGeneration(node.id);
       selectEdit(null);
       const gen = node.data as Generation;
-      if (gen.outputAssets[0]) {
-        setCanvasImage(gen.outputAssets[0].url);
+      if (gen.outputAssets.length > 0) {
+        setCanvasImages(gen.outputAssets);
       }
       // Restore the prompt that was used for this generation
       setCurrentPrompt(gen.prompt || '');
@@ -382,8 +382,8 @@ export const HistoryPanel: React.FC = () => {
       selectEdit(node.id);
       selectGeneration(null);
       const edit = node.data as Edit;
-      if (edit.outputAssets[0]) {
-        setCanvasImage(edit.outputAssets[0].url);
+      if (edit.outputAssets.length > 0) {
+        setCanvasImages(edit.outputAssets);
       }
       // Restore the instruction that was used for this edit
       setCurrentPrompt(edit.instruction || '');
@@ -636,6 +636,43 @@ export const HistoryPanel: React.FC = () => {
                         }}
                       />
                     )}
+
+                    {/* Multi-image badge */}
+                    {(() => {
+                      let outputCount = 0;
+                      if (node.type === 'generation') {
+                        const gen = node.data as Generation;
+                        outputCount = gen.outputAssets.length;
+                      } else {
+                        const edit = node.data as Edit;
+                        outputCount = edit.outputAssets.length;
+                      }
+
+                      if (outputCount > 1) {
+                        return (
+                          <>
+                            <Rect
+                              x={60}
+                              y={5}
+                              width={16}
+                              height={16}
+                              fill="#059669"
+                              cornerRadius={8}
+                            />
+                            <Text
+                              x={68}
+                              y={9}
+                              text={`${outputCount}`}
+                              fontSize={8}
+                              fill="white"
+                              align="center"
+                              width={0}
+                            />
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
 
                     {/* Overlay for blank root */}
                     {node.id === 'blank-root' && (

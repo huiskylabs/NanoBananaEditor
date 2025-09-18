@@ -8,6 +8,11 @@ export interface Asset {
   checksum: string;
 }
 
+export interface GridLayout {
+  order: number[]; // Image display order [0,1,2...]
+  columns: number; // Grid columns (auto-calculated)
+}
+
 export interface Generation {
   id: string;
   prompt: string;
@@ -15,11 +20,12 @@ export interface Generation {
     seed?: number;
     temperature?: number;
   };
-  sourceAssets: Asset[];
+  sourceAssets: Asset[]; // Still used for initial uploads
   outputAssets: Asset[];
   modelVersion: string;
   timestamp: number;
   costEstimate?: number;
+  gridLayout?: GridLayout; // How to arrange multiple outputs
   // Tree relationship tracking
   parentGenerationId?: string; // For sibling generations (iterations)
   type: 'root' | 'iteration'; // Root = first gen, iteration = sibling of existing gen
@@ -33,6 +39,7 @@ export interface Edit {
   maskReferenceAsset?: Asset;
   instruction: string;
   outputAssets: Asset[];
+  gridLayout?: GridLayout; // How to arrange multiple outputs
   timestamp: number;
 }
 

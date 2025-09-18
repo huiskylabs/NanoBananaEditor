@@ -4,7 +4,7 @@ import { Button } from './ui/Button';
 import { useAppStore } from '../store/useAppStore';
 import { useImageGeneration, useImageEditing } from '../hooks/useImageGeneration';
 import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
-import { blobToBase64 } from '../utils/imageUtils';
+import { blobToBase64, generateId } from '../utils/imageUtils';
 import { PromptHints } from './PromptHints';
 import { cn } from '../utils/cn';
 
@@ -25,8 +25,8 @@ export const PromptComposer: React.FC = () => {
     addEditReferenceImage,
     removeEditReferenceImage,
     clearEditReferenceImages,
-    canvasImage,
-    setCanvasImage,
+    canvasImages,
+    addCanvasImage,
     showPromptPanel,
     setShowPromptPanel,
     clearBrushStrokes,
@@ -42,8 +42,8 @@ export const PromptComposer: React.FC = () => {
   const handleGenerate = () => {
     if (!currentPrompt.trim()) return;
 
-    // If there's a canvas image, it's an edit operation
-    if (canvasImage) {
+    // If there are canvas images, it's an edit operation
+    if (canvasImages.length > 0) {
       edit(currentPrompt);
     } else {
       // Otherwise, it's a generation
@@ -67,14 +67,23 @@ export const PromptComposer: React.FC = () => {
         const base64 = await blobToBase64(file);
         const dataUrl = `data:${file.type};base64,${base64}`;
 
-        if (canvasImage) {
-          // If there's already a canvas image, add as style reference for editing
+        if (canvasImages.length > 0) {
+          // If there are already canvas images, add as style reference for editing
           if (editReferenceImages.length < 2) {
             addEditReferenceImage(dataUrl);
           }
         } else {
-          // If no canvas image, this becomes the main image to edit
-          setCanvasImage(dataUrl);
+          // If no canvas images, add to canvas grid
+          const asset = {
+            id: generateId(),
+            type: 'original' as const,
+            url: dataUrl,
+            mime: file.type,
+            width: 1024,
+            height: 1024,
+            checksum: base64.slice(0, 32)
+          };
+          addCanvasImage(asset);
           addUploadedImage(dataUrl);
         }
       } catch (error) {
@@ -88,7 +97,7 @@ export const PromptComposer: React.FC = () => {
     clearUploadedImages();
     clearEditReferenceImages();
     clearBrushStrokes();
-    setCanvasImage(null);
+    // Canvas images are cleared via clearSelection in the store
     setSeed(null);
     setTemperature(0.7);
     setShowClearConfirm(false);
@@ -144,10 +153,10 @@ export const PromptComposer: React.FC = () => {
       <div>
         <div>
           <label className="text-sm font-medium text-gray-300 mb-1 block">
-            {canvasImage ? 'Style References' : 'Upload Image'}
+            {canvasImages.length > 0 ? 'Style References' : 'Upload Images'}
           </label>
           <p className="text-xs text-gray-500 mb-3">
-            {canvasImage ? 'Optional style references for editing (up to 2)' : 'Upload image to edit or add reference images'}
+            {canvasImages.length > 0 ? 'Optional style references for editing (up to 2)' : 'Upload images to edit or add reference images'}
           </p>
           <input
             ref={fileInputRef}
@@ -160,7 +169,7 @@ export const PromptComposer: React.FC = () => {
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             className="w-full"
-            disabled={canvasImage && editReferenceImages.length >= 2}
+            disabled={canvasImages.length > 0 && editReferenceImages.length >= 2}
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload
@@ -215,13 +224,13 @@ export const PromptComposer: React.FC = () => {
       {/* Prompt Input */}
       <div>
         <label className="text-sm font-medium text-gray-300 mb-3 block">
-          {canvasImage ? 'Describe your changes' : 'Describe what you want to create'}
+          {canvasImages.length > 0 ? 'Describe your changes' : 'Describe what you want to create'}
         </label>
         <Textarea
           value={currentPrompt}
           onChange={(e) => setCurrentPrompt(e.target.value)}
           placeholder={
-            canvasImage
+            canvasImages.length > 0
               ? 'Make the sky more dramatic, add storm clouds...'
               : 'A serene mountain landscape at sunset with a lake reflecting the golden sky...'
           }
@@ -263,7 +272,7 @@ export const PromptComposer: React.FC = () => {
         ) : (
           <>
             <Wand2 className="h-4 w-4 mr-2" />
-            {canvasImage ? 'Apply Edit' : 'Generate'}
+            {canvasImages.length > 0 ? 'Apply Edit' : 'Generate'}
           </>
         )}
       </Button>

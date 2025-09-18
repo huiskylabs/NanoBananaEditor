@@ -5,7 +5,7 @@ import { generateId } from '../utils/imageUtils';
 import { Generation, Edit, Asset } from '../types';
 
 export const useImageGeneration = () => {
-  const { addGeneration, setIsGenerating, setCanvasImage, setCurrentProject, currentProject, selectedGenerationId, selectedEditId } = useAppStore();
+  const { addGeneration, setIsGenerating, setCanvasImages, setCurrentProject, currentProject, selectedGenerationId, selectedEditId } = useAppStore();
 
   const generateMutation = useMutation({
     mutationFn: async (request: GenerationRequest) => {
@@ -62,6 +62,10 @@ export const useImageGeneration = () => {
             seed: request.seed,
             temperature: request.temperature
           },
+          gridLayout: {
+            order: [0], // Single image for now
+            columns: 1
+          },
           sourceAssets: request.referenceImage ? [{
             id: generateId(),
             type: 'original',
@@ -88,7 +92,7 @@ export const useImageGeneration = () => {
         };
 
         addGeneration(generation);
-        setCanvasImage(outputAssets[0].url);
+        setCanvasImages(outputAssets);
 
         // Auto-select the new generation and clear edit selection
         const { selectGeneration, selectEdit } = useAppStore.getState();
@@ -127,8 +131,8 @@ export const useImageEditing = () => {
   const {
     addEdit,
     setIsGenerating,
-    setCanvasImage,
-    canvasImage,
+    setCanvasImages,
+    canvasImages,
     editReferenceImages,
     brushStrokes,
     selectedGenerationId,
@@ -140,9 +144,9 @@ export const useImageEditing = () => {
 
   const editMutation = useMutation({
     mutationFn: async (instruction: string) => {
-      // Always use canvas image as primary target if available, otherwise use first uploaded image
-      const sourceImage = canvasImage || uploadedImages[0];
-      if (!sourceImage) throw new Error('No image to edit');
+      // Use first canvas image as primary target
+      if (canvasImages.length === 0) throw new Error('No images to edit');
+      const sourceImage = canvasImages[0].url;
       
       // Convert canvas image to base64
       const base64Image = sourceImage.includes('base64,') 
@@ -301,14 +305,18 @@ export const useImageEditing = () => {
           maskReferenceAsset,
           instruction,
           outputAssets,
+          gridLayout: {
+            order: outputAssets.map((_, i) => i),
+            columns: Math.ceil(Math.sqrt(outputAssets.length))
+          },
           timestamp: Date.now()
         };
 
         addEdit(edit);
 
-        // Automatically load the edited image in the canvas and select the new edit
+        // Automatically load the edited images in the canvas and select the new edit
         const { selectEdit, selectGeneration } = useAppStore.getState();
-        setCanvasImage(outputAssets[0].url);
+        setCanvasImages(outputAssets);
         selectEdit(edit.id);
         selectGeneration(null); // Clear generation selection to highlight the edit
       }
