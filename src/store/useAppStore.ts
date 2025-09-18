@@ -162,7 +162,8 @@ export const useAppStore = create<AppState>()(
         selectedEditId: null,
         canvasImage: null,
         brushStrokes: [],
-        editReferenceImages: []
+        editReferenceImages: [],
+        currentPrompt: ''
       }),
       setShowHistory: (show) => set({ showHistory: show }),
       

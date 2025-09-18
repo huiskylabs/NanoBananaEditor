@@ -20,7 +20,8 @@ export const HistoryPanel: React.FC = () => {
     setShowHistory,
     setCanvasImage,
     selectedTool,
-    historyPanelWidth
+    historyPanelWidth,
+    setCurrentPrompt
   } = useAppStore();
 
   const [previewModal, setPreviewModal] = React.useState<{
@@ -367,6 +368,8 @@ export const HistoryPanel: React.FC = () => {
       if (gen.outputAssets[0]) {
         setCanvasImage(gen.outputAssets[0].url);
       }
+      // Restore the prompt that was used for this generation
+      setCurrentPrompt(gen.prompt || '');
     } else {
       selectEdit(node.id);
       selectGeneration(null);
@@ -374,6 +377,8 @@ export const HistoryPanel: React.FC = () => {
       if (edit.outputAssets[0]) {
         setCanvasImage(edit.outputAssets[0].url);
       }
+      // Restore the instruction that was used for this edit
+      setCurrentPrompt(edit.instruction || '');
     }
   };
 
