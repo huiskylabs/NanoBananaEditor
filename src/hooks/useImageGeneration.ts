@@ -305,12 +305,12 @@ export const useImageEditing = () => {
         };
 
         addEdit(edit);
-        
-        // Automatically load the edited image in the canvas
-        const { selectEdit } = useAppStore.getState();
+
+        // Automatically load the edited image in the canvas and select the new edit
+        const { selectEdit, selectGeneration } = useAppStore.getState();
         setCanvasImage(outputAssets[0].url);
         selectEdit(edit.id);
-        // Keep the selected generation so subsequent edits can use it as parent
+        selectGeneration(null); // Clear generation selection to highlight the edit
       }
       setIsGenerating(false);
     },

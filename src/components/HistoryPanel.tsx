@@ -311,6 +311,13 @@ export const HistoryPanel: React.FC = () => {
 
     setNodes(displayNodes);
 
+    // Ensure proper highlighting after nodes are updated
+    if (selectedGenerationId && displayNodes.find(n => n.id === selectedGenerationId)) {
+      setActiveNodeId(selectedGenerationId);
+    } else if (selectedEditId && displayNodes.find(n => n.id === selectedEditId)) {
+      setActiveNodeId(selectedEditId);
+    }
+
     // Load images for nodes asynchronously
     displayNodes.forEach(async (node) => {
       if (node.id === 'blank-root') return; // Skip blank root
@@ -340,7 +347,7 @@ export const HistoryPanel: React.FC = () => {
         }
       }
     });
-  }, [currentProject]);
+  }, [currentProject, selectedGenerationId, selectedEditId]);
 
   // Update active node based on selection
   useEffect(() => {
@@ -353,6 +360,7 @@ export const HistoryPanel: React.FC = () => {
       setActiveNodeId('blank-root');
     }
   }, [selectedGenerationId, selectedEditId]);
+
 
   // Handle tree node click
   const handleTreeNodeClick = (node: typeof nodes[0]) => {
