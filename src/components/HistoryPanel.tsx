@@ -51,7 +51,7 @@ export const HistoryPanel: React.FC = () => {
   }>>([]);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [treeZoom, setTreeZoom] = useState(0.8);
-  const [treePan, setTreePan] = useState({ x: 0, y: 0 }); // Start at origin since tree is positioned properly
+  const [treePan, setTreePan] = useState({ x: 0, y: 0 }); // Tree will be centered automatically
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
@@ -265,11 +265,37 @@ export const HistoryPanel: React.FC = () => {
       return subtreeWidth;
     }
 
-    // Position each root tree to fit in viewport
-    let currentX = 50; // Start near left edge
-    rootNodes.forEach(root => {
+    // Calculate total width needed for all root trees
+    const treeWidths = rootNodes.map(root => {
+      // Pre-calculate width for each tree
+      function calculateSubtreeWidth(n: TreeNode): number {
+        if (n.children.length === 0) {
+          return nodeWidth;
+        }
+        let totalChildWidth = 0;
+        n.children.forEach(child => {
+          totalChildWidth += calculateSubtreeWidth(child);
+        });
+        const spacingWidth = (n.children.length - 1) * horizontalSpacing;
+        return Math.max(nodeWidth, totalChildWidth + spacingWidth);
+      }
+      return calculateSubtreeWidth(root);
+    });
+
+    const totalTreeWidth = treeWidths.reduce((sum, width) => sum + width, 0);
+    const treeGaps = Math.max(0, (rootNodes.length - 1) * 100); // Gap between separate trees
+    const totalWidth = totalTreeWidth + treeGaps;
+
+    // Center the entire forest in the viewport
+    // Use stageSize if available, otherwise use a reasonable default
+    const viewportWidth = stageSize.width > 0 ? stageSize.width : historyPanelWidth;
+    const startX = Math.max(50, (viewportWidth - totalWidth) / 2);
+
+    // Position each root tree centered
+    let currentX = startX;
+    rootNodes.forEach((root, index) => {
       const treeWidth = positionTree(root, currentX, 50); // Start near top
-      currentX += treeWidth + 100; // Smaller gap between separate trees
+      currentX += treeWidth + 100; // Gap between separate trees
     });
 
     // Convert tree nodes to display nodes and load images
