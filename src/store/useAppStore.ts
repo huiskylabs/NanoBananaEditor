@@ -33,7 +33,8 @@ interface AppState {
   
   // Panel visibility
   showPromptPanel: boolean;
-  
+  historyPanelWidth: number;
+
   // UI state
   selectedTool: 'generate' | 'edit' | 'mask';
   
@@ -69,7 +70,8 @@ interface AppState {
   setShowHistory: (show: boolean) => void;
   
   setShowPromptPanel: (show: boolean) => void;
-  
+  setHistoryPanelWidth: (width: number) => void;
+
   setSelectedTool: (tool: 'generate' | 'edit' | 'mask') => void;
 }
 
@@ -99,7 +101,8 @@ export const useAppStore = create<AppState>()(
       showHistory: true,
       
       showPromptPanel: true,
-      
+      historyPanelWidth: 320,
+
       selectedTool: 'generate',
       
       // Actions
@@ -164,7 +167,8 @@ export const useAppStore = create<AppState>()(
       setShowHistory: (show) => set({ showHistory: show }),
       
       setShowPromptPanel: (show) => set({ showPromptPanel: show }),
-      
+      setHistoryPanelWidth: (width) => set({ historyPanelWidth: width }),
+
       setSelectedTool: (tool) => set({ selectedTool: tool }),
     }),
     { name: 'nano-banana-store' }

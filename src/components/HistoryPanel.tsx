@@ -19,7 +19,8 @@ export const HistoryPanel: React.FC = () => {
     showHistory,
     setShowHistory,
     setCanvasImage,
-    selectedTool
+    selectedTool,
+    historyPanelWidth
   } = useAppStore();
 
   const [previewModal, setPreviewModal] = React.useState<{
@@ -208,31 +209,60 @@ export const HistoryPanel: React.FC = () => {
       }
     });
 
-    // Position nodes using simple tree layout (preserves creation order)
+    // Position nodes using proper tree layout (no overlaps)
     function positionTree(node: TreeNode, x: number, y: number): number {
-      node.x = x;
-      node.y = y;
+      // First pass: calculate subtree widths
+      function calculateSubtreeWidth(n: TreeNode): number {
+        if (n.children.length === 0) {
+          return nodeWidth;
+        }
 
-      if (node.children.length === 0) {
-        return nodeWidth;
+        let totalChildWidth = 0;
+        n.children.forEach(child => {
+          totalChildWidth += calculateSubtreeWidth(child);
+        });
+
+        // Add spacing between children
+        const spacingWidth = (n.children.length - 1) * horizontalSpacing;
+        const childrenWidth = totalChildWidth + spacingWidth;
+
+        // Return the larger of node width or children width
+        return Math.max(nodeWidth, childrenWidth);
       }
 
-      let currentX = x;
-      const childY = y + verticalSpacing;
+      // Second pass: position nodes
+      function positionSubtree(n: TreeNode, centerX: number, y: number): void {
+        n.y = y;
 
-      node.children.forEach((child) => {
-        positionTree(child, currentX, childY);
-        currentX += nodeWidth + horizontalSpacing;
-      });
+        if (n.children.length === 0) {
+          n.x = centerX - nodeWidth / 2;
+          return;
+        }
 
-      // Center parent node over children
-      if (node.children.length > 0) {
-        const firstChildX = node.children[0].x;
-        const lastChildX = node.children[node.children.length - 1].x;
-        node.x = (firstChildX + lastChildX) / 2;
+        // Calculate total width needed for all children
+        const subtreeWidths = n.children.map(child => calculateSubtreeWidth(child));
+        const totalChildWidth = subtreeWidths.reduce((sum, width) => sum + width, 0);
+        const spacingWidth = (n.children.length - 1) * horizontalSpacing;
+        const totalWidth = totalChildWidth + spacingWidth;
+
+        // Position children from left to right
+        let currentX = centerX - totalWidth / 2;
+        n.children.forEach((child, index) => {
+          const childWidth = subtreeWidths[index];
+          const childCenterX = currentX + childWidth / 2;
+          positionSubtree(child, childCenterX, y + verticalSpacing);
+          currentX += childWidth + horizontalSpacing;
+        });
+
+        // Position parent centered over children
+        n.x = centerX - nodeWidth / 2;
       }
 
-      return Math.max(nodeWidth, currentX - x);
+      // Calculate this subtree's width and position it
+      const subtreeWidth = calculateSubtreeWidth(node);
+      positionSubtree(node, x + subtreeWidth / 2, y);
+
+      return subtreeWidth;
     }
 
     // Position each root tree to fit in viewport
@@ -340,7 +370,10 @@ export const HistoryPanel: React.FC = () => {
   }
 
   return (
-    <div className="w-80 bg-gray-950 border-l border-gray-800 p-6 flex flex-col h-full">
+    <div
+      className="bg-gray-950 border-l border-gray-800 p-6 flex flex-col h-full"
+      style={{ width: `${historyPanelWidth}px` }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-2">
