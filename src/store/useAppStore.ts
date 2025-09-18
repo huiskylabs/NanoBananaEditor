@@ -65,6 +65,7 @@ interface AppState {
   addEdit: (edit: Edit) => void;
   selectGeneration: (id: string | null) => void;
   selectEdit: (id: string | null) => void;
+  clearSelection: () => void;
   setShowHistory: (show: boolean) => void;
   
   setShowPromptPanel: (show: boolean) => void;
@@ -153,6 +154,13 @@ export const useAppStore = create<AppState>()(
       
       selectGeneration: (id) => set({ selectedGenerationId: id }),
       selectEdit: (id) => set({ selectedEditId: id }),
+      clearSelection: () => set({
+        selectedGenerationId: null,
+        selectedEditId: null,
+        canvasImage: null,
+        brushStrokes: [],
+        editReferenceImages: []
+      }),
       setShowHistory: (show) => set({ showHistory: show }),
       
       setShowPromptPanel: (show) => set({ showPromptPanel: show }),

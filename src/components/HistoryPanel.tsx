@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { History, Download, Image as ImageIcon, Layers } from 'lucide-react';
+import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { ImagePreviewModal } from './ImagePreviewModal';
+import { Stage, Layer, Image as KonvaImage, Group, Rect, Text, Line, Path } from 'react-konva';
+import { Generation, Edit } from '../types';
 
 export const HistoryPanel: React.FC = () => {
   const {
@@ -13,6 +15,7 @@ export const HistoryPanel: React.FC = () => {
     selectedEditId,
     selectGeneration,
     selectEdit,
+    clearSelection,
     showHistory,
     setShowHistory,
     setCanvasImage,
@@ -34,20 +37,289 @@ export const HistoryPanel: React.FC = () => {
   const generations = currentProject?.generations || [];
   const edits = currentProject?.edits || [];
 
-  // Get current image dimensions
-  const [imageDimensions, setImageDimensions] = React.useState<{ width: number; height: number } | null>(null);
-  
-  React.useEffect(() => {
-    if (canvasImage) {
-      const img = new Image();
-      img.onload = () => {
-        setImageDimensions({ width: img.width, height: img.height });
-      };
-      img.src = canvasImage;
-    } else {
-      setImageDimensions(null);
+  // Infinite Canvas Tree State
+  const stageRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [nodes, setNodes] = useState<Array<{
+    id: string;
+    x: number;
+    y: number;
+    type: 'generation' | 'edit';
+    data: Generation | Edit;
+    imageElement?: HTMLImageElement;
+  }>>([]);
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [treeZoom, setTreeZoom] = useState(0.8);
+  const [treePan, setTreePan] = useState({ x: 0, y: 0 }); // Start at origin since tree is positioned properly
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+  const [tooltip, setTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    content: string;
+    title: string;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    content: '',
+    title: ''
+  });
+
+  // Measure container size for Stage
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        setStageSize({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight
+        });
+      }
+    };
+
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
     }
-  }, [canvasImage]);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Load images for nodes
+  const loadImageForNode = (imageUrl: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
+  };
+
+  // Build tree structure for infinite canvas
+  useEffect(() => {
+    if (!currentProject) {
+      setNodes([]);
+      return;
+    }
+
+    const nodeWidth = 80;
+    const nodeHeight = 80;
+    const verticalSpacing = 100;  // Enough space so children are below parent
+    const horizontalSpacing = 20;  // Very compact horizontal spacing between siblings
+
+    // Build proper tree structure
+    interface TreeNode {
+      id: string;
+      type: 'generation' | 'edit';
+      data: Generation | Edit;
+      children: TreeNode[];
+      parent?: TreeNode;
+      x: number;
+      y: number;
+    }
+
+    // Create tree nodes map
+    const treeNodes = new Map<string, TreeNode>();
+    const rootNodes: TreeNode[] = [];
+
+    // Always add a root blank node
+    const blankRootNode: TreeNode = {
+      id: 'blank-root',
+      type: 'generation',
+      data: {
+        id: 'blank-root',
+        prompt: 'Start here',
+        parameters: {},
+        sourceAssets: [],
+        outputAssets: [],
+        modelVersion: '',
+        timestamp: 0,
+        type: 'root'
+      } as Generation,
+      children: [],
+      x: 0,
+      y: 0
+    };
+    treeNodes.set('blank-root', blankRootNode);
+    rootNodes.push(blankRootNode);
+
+    // Add all generations to the tree
+    currentProject.generations.forEach(generation => {
+      const node: TreeNode = {
+        id: generation.id,
+        type: 'generation',
+        data: generation,
+        children: [],
+        x: 0,
+        y: 0
+      };
+      treeNodes.set(generation.id, node);
+
+      if (generation.type === 'root') {
+        // Root generations connect to blank root
+        blankRootNode.children.push(node);
+        node.parent = blankRootNode;
+      }
+    });
+
+    // Add all edits to the tree
+    currentProject.edits.forEach(edit => {
+      const node: TreeNode = {
+        id: edit.id,
+        type: 'edit',
+        data: edit,
+        children: [],
+        x: 0,
+        y: 0
+      };
+      treeNodes.set(edit.id, node);
+    });
+
+    // Build parent-child relationships
+    currentProject.generations.forEach(generation => {
+      if (generation.parentGenerationId) {
+        const parent = treeNodes.get(generation.parentGenerationId);
+        const child = treeNodes.get(generation.id);
+        if (parent && child) {
+          parent.children.push(child);
+          child.parent = parent;
+        }
+      }
+    });
+
+    // Build edit relationships
+    currentProject.edits.forEach(edit => {
+      const child = treeNodes.get(edit.id);
+      if (!child) return;
+
+      // Edit can have either a generation parent or edit parent
+      let parent: TreeNode | undefined;
+      if (edit.parentEditId) {
+        parent = treeNodes.get(edit.parentEditId);
+      } else if (edit.parentGenerationId) {
+        parent = treeNodes.get(edit.parentGenerationId);
+      }
+
+      if (parent && child) {
+        parent.children.push(child);
+        child.parent = parent;
+      }
+    });
+
+    // Position nodes using simple tree layout (preserves creation order)
+    function positionTree(node: TreeNode, x: number, y: number): number {
+      node.x = x;
+      node.y = y;
+
+      if (node.children.length === 0) {
+        return nodeWidth;
+      }
+
+      let currentX = x;
+      const childY = y + verticalSpacing;
+
+      node.children.forEach((child) => {
+        positionTree(child, currentX, childY);
+        currentX += nodeWidth + horizontalSpacing;
+      });
+
+      // Center parent node over children
+      if (node.children.length > 0) {
+        const firstChildX = node.children[0].x;
+        const lastChildX = node.children[node.children.length - 1].x;
+        node.x = (firstChildX + lastChildX) / 2;
+      }
+
+      return Math.max(nodeWidth, currentX - x);
+    }
+
+    // Position each root tree to fit in viewport
+    let currentX = 50; // Start near left edge
+    rootNodes.forEach(root => {
+      const treeWidth = positionTree(root, currentX, 50); // Start near top
+      currentX += treeWidth + 100; // Smaller gap between separate trees
+    });
+
+    // Convert tree nodes to display nodes and load images
+    const displayNodes = Array.from(treeNodes.values()).map(treeNode => ({
+      id: treeNode.id,
+      x: treeNode.x,
+      y: treeNode.y,
+      type: treeNode.type,
+      data: treeNode.data,
+      imageElement: undefined as HTMLImageElement | undefined
+    }));
+
+    setNodes(displayNodes);
+
+    // Load images for nodes asynchronously
+    displayNodes.forEach(async (node) => {
+      if (node.id === 'blank-root') return; // Skip blank root
+
+      let imageUrl: string | undefined;
+
+      if (node.type === 'generation') {
+        const gen = node.data as Generation;
+        imageUrl = gen.outputAssets[0]?.url;
+      } else {
+        const edit = node.data as Edit;
+        imageUrl = edit.outputAssets[0]?.url;
+      }
+
+      if (imageUrl) {
+        try {
+          const imageElement = await loadImageForNode(imageUrl);
+          setNodes(prevNodes =>
+            prevNodes.map(n =>
+              n.id === node.id
+                ? { ...n, imageElement }
+                : n
+            )
+          );
+        } catch (error) {
+          console.warn(`Failed to load image for node ${node.id}:`, error);
+        }
+      }
+    });
+  }, [currentProject]);
+
+  // Update active node based on selection
+  useEffect(() => {
+    if (selectedGenerationId) {
+      setActiveNodeId(selectedGenerationId);
+    } else if (selectedEditId) {
+      setActiveNodeId(selectedEditId);
+    } else {
+      // Nothing selected, highlight blank root
+      setActiveNodeId('blank-root');
+    }
+  }, [selectedGenerationId, selectedEditId]);
+
+  // Handle tree node click
+  const handleTreeNodeClick = (node: typeof nodes[0]) => {
+    setActiveNodeId(node.id);
+
+    if (node.id === 'blank-root') {
+      // Click on blank root - clear selection and return to blank state
+      clearSelection();
+    } else if (node.type === 'generation') {
+      selectGeneration(node.id);
+      selectEdit(null);
+      const gen = node.data as Generation;
+      if (gen.outputAssets[0]) {
+        setCanvasImage(gen.outputAssets[0].url);
+      }
+    } else {
+      selectEdit(node.id);
+      selectGeneration(null);
+      const edit = node.data as Edit;
+      if (edit.outputAssets[0]) {
+        setCanvasImage(edit.outputAssets[0].url);
+      }
+    }
+  };
 
   if (!showHistory) {
     return (
@@ -75,326 +347,349 @@ export const HistoryPanel: React.FC = () => {
           <History className="h-5 w-5 text-gray-400" />
           <h3 className="text-sm font-medium text-gray-300">History & Variants</h3>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setShowHistory(!showHistory)}
-          className="h-6 w-6"
-          title="Hide History Panel"
-        >
-          ×
-        </Button>
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearSelection}
+            className="h-6 px-2 text-xs"
+            title="Start New - Return to blank canvas"
+          >
+            New
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowHistory(!showHistory)}
+            className="h-6 w-6"
+            title="Hide History Panel"
+          >
+            ×
+          </Button>
+        </div>
       </div>
 
-      {/* Variants Grid */}
-      <div className="mb-6 flex-shrink-0">
-        <h4 className="text-xs font-medium text-gray-400 mb-3">Current Variants</h4>
-        {generations.length === 0 && edits.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-2">🖼️</div>
-            <p className="text-sm text-gray-500">No generations yet</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {/* Show generations */}
-            {generations.slice(-2).map((generation, index) => (
-              <div
-                key={generation.id}
-                className={cn(
-                  'relative aspect-square rounded-lg border-2 cursor-pointer transition-all duration-200 overflow-hidden',
-                  selectedGenerationId === generation.id
-                    ? 'border-yellow-400'
-                    : 'border-gray-700 hover:border-gray-600'
-                )}
-                onClick={() => {
-                  selectGeneration(generation.id);
-                  if (generation.outputAssets[0]) {
-                    setCanvasImage(generation.outputAssets[0].url);
-                  }
-                }}
-              >
-                {generation.outputAssets[0] ? (
-                  <>
-                    <img
-                      src={generation.outputAssets[0].url}
-                      alt="Generated variant"
-                      className="w-full h-full object-cover"
-                    />
-                  </>
-                ) : (
-                  <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400" />
-                  </div>
-                )}
-                
-                {/* Variant Number */}
-                <div className="absolute top-2 left-2 bg-gray-900/80 text-xs px-2 py-1 rounded">
-                  #{index + 1}
-                </div>
-              </div>
-            ))}
-            
-            {/* Show edits */}
-            {edits.slice(-2).map((edit, index) => (
-              <div
-                key={edit.id}
-                className={cn(
-                  'relative aspect-square rounded-lg border-2 cursor-pointer transition-all duration-200 overflow-hidden',
-                  selectedEditId === edit.id
-                    ? 'border-yellow-400'
-                    : 'border-gray-700 hover:border-gray-600'
-                )}
-                onClick={() => {
-                  if (edit.outputAssets[0]) {
-                    setCanvasImage(edit.outputAssets[0].url);
-                    selectEdit(edit.id);
-                    selectGeneration(null);
-                  }
-                }}
-              >
-                {edit.outputAssets[0] ? (
-                  <img
-                    src={edit.outputAssets[0].url}
-                    alt="Edited variant"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400" />
-                  </div>
-                )}
-                
-                {/* Edit Label */}
-                <div className="absolute top-2 left-2 bg-purple-900/80 text-xs px-2 py-1 rounded">
-                  Edit #{index + 1}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Tree View */}
+      <div className="flex-1 flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-xs font-medium text-gray-400">Tree View</h4>
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTreeZoom(Math.max(0.1, treeZoom - 0.1))}
+              className="h-5 w-5"
+              title="Zoom Out"
+            >
+              <ZoomOut className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                // Calculate bounds of all nodes
+                if (nodes.length === 0) {
+                  setTreeZoom(1);
+                  setTreePan({ x: 0, y: 0 });
+                  return;
+                }
 
-      {/* Current Image Info */}
-      {(canvasImage || imageDimensions) && (
-        <div className="mb-4 p-3 bg-gray-900 rounded-lg border border-gray-700">
-          <h4 className="text-xs font-medium text-gray-400 mb-2">Current Image</h4>
-          <div className="space-y-1 text-xs text-gray-500">
-            {imageDimensions && (
-              <div className="flex justify-between">
-                <span>Dimensions:</span>
-                <span className="text-gray-300">{imageDimensions.width} × {imageDimensions.height}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span>Mode:</span>
-              <span className="text-gray-300 capitalize">{selectedTool}</span>
-            </div>
+                const minX = Math.min(...nodes.map(n => n.x));
+                const maxX = Math.max(...nodes.map(n => n.x + 80)); // node width
+                const minY = Math.min(...nodes.map(n => n.y));
+                const maxY = Math.max(...nodes.map(n => n.y + 80)); // node height
+
+                const treeWidth = maxX - minX;
+                const treeHeight = maxY - minY;
+
+                // Tree view container dimensions (visible viewport)
+                const containerWidth = stageSize.width; // Actual container width
+                const containerHeight = stageSize.height; // Actual container height
+
+                // Calculate zoom to fit with some margin
+                const zoomX = (containerWidth * 0.9) / treeWidth;
+                const zoomY = (containerHeight * 0.9) / treeHeight;
+                const fitZoom = Math.min(zoomX, zoomY, 1); // Don't zoom in past 100%
+
+                // Calculate pan to center the tree
+                const panX = (containerWidth - treeWidth * fitZoom) / 2 - minX * fitZoom;
+                const panY = (containerHeight - treeHeight * fitZoom) / 2 - minY * fitZoom;
+
+                setTreeZoom(fitZoom);
+                setTreePan({ x: panX, y: panY });
+              }}
+              className="h-5 w-5 text-xs"
+              title="Fit Tree to View"
+            >
+              Fit
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTreeZoom(Math.min(2, treeZoom + 0.1))}
+              className="h-5 w-5"
+              title="Zoom In"
+            >
+              <ZoomIn className="h-3 w-3" />
+            </Button>
           </div>
         </div>
-      )}
-
-      {/* Generation Details */}
-      <div className="mb-6 p-4 bg-gray-900 rounded-lg border border-gray-700 flex-1 overflow-y-auto min-h-0">
-        <h4 className="text-xs font-medium text-gray-400 mb-2">Generation Details</h4>
-        {(() => {
-          const gen = generations.find(g => g.id === selectedGenerationId);
-          const selectedEdit = edits.find(e => e.id === selectedEditId);
-          
-          if (gen) {
-            return (
-              <div className="space-y-3">
-                <div className="space-y-2 text-xs text-gray-500">
-                  <div>
-                    <span className="text-gray-400">Prompt:</span>
-                    <p className="text-gray-300 mt-1">{gen.prompt}</p>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Model:</span>
-                    <span>{gen.modelVersion}</span>
-                  </div>
-                  {gen.parameters.seed && (
-                    <div className="flex justify-between">
-                      <span>Seed:</span>
-                      <span>{gen.parameters.seed}</span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Reference Images */}
-                {gen.sourceAssets.length > 0 && (
-                  <div>
-                    <h5 className="text-xs font-medium text-gray-400 mb-2">Reference Images</h5>
-                    <div className="grid grid-cols-2 gap-2">
-                      {gen.sourceAssets.map((asset, index) => (
-                        <button
-                          key={asset.id}
-                          onClick={() => setPreviewModal({
-                            open: true,
-                            imageUrl: asset.url,
-                            title: `Reference Image ${index + 1}`,
-                            description: 'This reference image was used to guide the generation'
-                          })}
-                          className="relative aspect-square rounded border border-gray-700 hover:border-gray-600 transition-colors overflow-hidden group"
-                        >
-                          <img
-                            src={asset.url}
-                            alt={`Reference ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                            <ImageIcon className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                          <div className="absolute bottom-1 left-1 bg-gray-900/80 text-xs px-1 py-0.5 rounded text-gray-300">
-                            Ref {index + 1}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          } else if (selectedEdit) {
-            const parentGen = generations.find(g => g.id === selectedEdit.parentGenerationId);
-            return (
-              <div className="space-y-3">
-                <div className="space-y-2 text-xs text-gray-500">
-                  <div>
-                    <span className="text-gray-400">Edit Instruction:</span>
-                    <p className="text-gray-300 mt-1">{selectedEdit.instruction}</p>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Type:</span>
-                    <span>Image Edit</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Created:</span>
-                    <span>{new Date(selectedEdit.timestamp).toLocaleTimeString()}</span>
-                  </div>
-                  {selectedEdit.maskAssetId && (
-                    <div className="flex justify-between">
-                      <span>Mask:</span>
-                      <span className="text-purple-400">Applied</span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Parent Generation Reference */}
-                {parentGen && (
-                  <div>
-                    <h5 className="text-xs font-medium text-gray-400 mb-2">Original Image</h5>
-                    <button
-                      onClick={() => setPreviewModal({
-                        open: true,
-                        imageUrl: parentGen.outputAssets[0]?.url || '',
-                        title: 'Original Image',
-                        description: 'The base image that was edited'
-                      })}
-                      className="relative aspect-square w-16 rounded border border-gray-700 hover:border-gray-600 transition-colors overflow-hidden group"
-                    >
-                      <img
-                        src={parentGen.outputAssets[0]?.url}
-                        alt="Original"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <ImageIcon className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </button>
-                  </div>
-                )}
-                
-                {/* Mask Visualization */}
-                {selectedEdit.maskReferenceAsset && (
-                  <div>
-                    <h5 className="text-xs font-medium text-gray-400 mb-2">Masked Reference</h5>
-                    <button
-                      onClick={() => setPreviewModal({
-                        open: true,
-                        imageUrl: selectedEdit.maskReferenceAsset!.url,
-                        title: 'Masked Reference Image',
-                        description: 'This image with mask overlay was sent to the AI model to guide the edit'
-                      })}
-                      className="relative aspect-square w-16 rounded border border-gray-700 hover:border-gray-600 transition-colors overflow-hidden group"
-                    >
-                      <img
-                        src={selectedEdit.maskReferenceAsset.url}
-                        alt="Masked reference"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <ImageIcon className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <div className="absolute bottom-1 left-1 bg-purple-900/80 text-xs px-1 py-0.5 rounded text-purple-300">
-                        Mask
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          } else {
-            return (
-              <div className="space-y-2 text-xs text-gray-500">
-                <p className="text-gray-400">Select a generation or edit to view details</p>
-              </div>
-            );
-          }
-        })()}
-      </div>
-
-      {/* Actions */}
-      <div className="space-y-3 flex-shrink-0">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="w-full"
-          onClick={() => {
-            // Find the currently displayed image (either generation or edit)
-            let imageUrl: string | null = null;
-            
-            if (selectedGenerationId) {
-              const gen = generations.find(g => g.id === selectedGenerationId);
-              imageUrl = gen?.outputAssets[0]?.url || null;
-            } else {
-              // If no generation selected, try to get the current canvas image
-              const { canvasImage } = useAppStore.getState();
-              imageUrl = canvasImage;
-            }
-            
-            if (imageUrl) {
-              // Handle both data URLs and regular URLs
-              if (imageUrl.startsWith('data:')) {
-                const link = document.createElement('a');
-                link.href = imageUrl;
-                link.download = `nano-banana-${Date.now()}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              } else {
-                // For external URLs, we need to fetch and convert to blob
-                fetch(imageUrl)
-                  .then(response => response.blob())
-                  .then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `nano-banana-${Date.now()}.png`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                  });
-              }
-            }
-          }}
-          disabled={!selectedGenerationId && !useAppStore.getState().canvasImage}
+        <div
+          ref={containerRef}
+          className="flex-1 bg-gray-900 rounded-lg border border-gray-700 overflow-hidden relative"
         >
-          <Download className="h-4 w-4 mr-2" />
-          Download
-        </Button>
+          {nodes.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-2xl mb-2">🌳</div>
+                <p className="text-xs text-gray-500">No generations yet</p>
+              </div>
+            </div>
+          ) : stageSize.width > 0 && stageSize.height > 0 ? (
+            <div className="w-full h-full overflow-hidden">
+              <Stage
+                ref={stageRef}
+                width={stageSize.width} // Responsive container width
+                height={stageSize.height} // Responsive container height
+                scaleX={treeZoom}
+                scaleY={treeZoom}
+                x={treePan.x}
+                y={treePan.y}
+                draggable
+                onDragEnd={(e) => {
+                  setTreePan({ x: e.target.x(), y: e.target.y() });
+                }}
+              >
+              <Layer>
+                {/* Connection lines */}
+                {nodes.map(node => {
+                  const lines = [];
+
+                  // Find parent node for this node
+                  let parentNode = null;
+
+                  if (node.type === 'edit') {
+                    const edit = node.data as Edit;
+                    if (edit.parentEditId) {
+                      // Edit has edit parent
+                      parentNode = nodes.find(n => n.id === edit.parentEditId);
+                    } else if (edit.parentGenerationId) {
+                      // Edit has generation parent
+                      parentNode = nodes.find(n => n.id === edit.parentGenerationId);
+                    }
+                  } else if (node.type === 'generation') {
+                    const generation = node.data as Generation;
+                    if (generation.parentGenerationId) {
+                      // Generation has generation parent
+                      parentNode = nodes.find(n => n.id === generation.parentGenerationId);
+                    } else if (generation.type === 'root') {
+                      // Root generation connects to blank root
+                      parentNode = nodes.find(n => n.id === 'blank-root');
+                    }
+                  }
+
+                  // Draw connection line to parent
+                  if (parentNode && node.id !== 'blank-root') {
+                    const startX = parentNode.x + 40;
+                    const startY = parentNode.y + 80;
+                    const endX = node.x + 40;
+                    const endY = node.y;
+                    const midY = startY + (endY - startY) / 2;
+
+                    // Choose line color based on node type
+                    let strokeColor = '#6b7280'; // Default gray
+                    let dashPattern = undefined;
+
+                    if (node.type === 'edit') {
+                      strokeColor = '#8b5cf6'; // Purple for edits
+                    } else if (node.type === 'generation') {
+                      const generation = node.data as Generation;
+                      if (generation.type === 'iteration') {
+                        strokeColor = '#10b981'; // Green for iteration generations
+                        dashPattern = [5, 5];
+                      } else {
+                        strokeColor = '#6b7280'; // Gray for root generations
+                      }
+                    }
+
+                    lines.push(
+                      <Path
+                        key={`connection-line-${node.id}`}
+                        data={`M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`}
+                        stroke={strokeColor}
+                        strokeWidth={2}
+                        fill=""
+                        dash={dashPattern}
+                      />
+                    );
+                  }
+
+                  return lines;
+                })}
+
+
+                {/* Tree nodes */}
+                {nodes.map(node => (
+                  <Group
+                    key={node.id}
+                    x={node.x}
+                    y={node.y}
+                    onClick={() => handleTreeNodeClick(node)}
+                    onTap={() => handleTreeNodeClick(node)}
+                  >
+                    {/* Node background */}
+                    <Rect
+                      width={80}
+                      height={80}
+                      fill={node.id === activeNodeId ? '#3b82f6' : '#374151'}
+                      stroke={node.id === activeNodeId ? '#60a5fa' : '#6b7280'}
+                      strokeWidth={node.id === activeNodeId ? 4 : 1}
+                      cornerRadius={6}
+                    />
+
+                    {/* Image preview */}
+                    {node.imageElement && (
+                      <KonvaImage
+                        image={node.imageElement}
+                        width={76}
+                        height={76}
+                        x={2}
+                        y={2}
+                        cornerRadius={4}
+                        crop={{
+                          x: 0,
+                          y: 0,
+                          width: node.imageElement.width,
+                          height: node.imageElement.height
+                        }}
+                      />
+                    )}
+
+                    {/* Overlay for blank root */}
+                    {node.id === 'blank-root' && (
+                      <>
+                        <Rect
+                          width={76}
+                          height={76}
+                          x={2}
+                          y={2}
+                          fill="#1f2937"
+                          cornerRadius={4}
+                        />
+                        <Text
+                          x={40}
+                          y={40}
+                          text="🎨"
+                          fontSize={24}
+                          align="center"
+                          offsetX={12}
+                          offsetY={12}
+                        />
+                      </>
+                    )}
+
+                    {/* Node type label */}
+                    <Rect
+                      x={2}
+                      y={2}
+                      width={node.type === 'generation' ? 20 : 16}
+                      height={12}
+                      fill={node.type === 'generation' ? '#10b981' : '#8b5cf6'}
+                      cornerRadius={2}
+                    />
+                    <Text
+                      x={node.type === 'generation' ? 10 : 8}
+                      y={8}
+                      text={node.type === 'generation' ? 'G' : 'E'}
+                      fontSize={8}
+                      fill="white"
+                      align="center"
+                    />
+
+                    {/* Info icon for hover tooltip */}
+                    {node.id !== 'blank-root' && (
+                      <Group
+                        onMouseEnter={(e) => {
+                          const stage = e.target.getStage();
+                          const pointerPos = stage.getPointerPosition();
+
+                          let content = '';
+                          let title = '';
+
+                          if (node.type === 'generation') {
+                            const gen = node.data as Generation;
+                            title = 'Generation Details';
+                            content = `Prompt: ${gen.prompt}\nModel: ${gen.modelVersion}`;
+                            if (gen.parameters.seed) content += `\nSeed: ${gen.parameters.seed}`;
+                            if (gen.parameters.temperature) content += `\nTemperature: ${gen.parameters.temperature}`;
+                          } else {
+                            const edit = node.data as Edit;
+                            title = 'Edit Details';
+                            content = `Instruction: ${edit.instruction}\nType: Image Edit`;
+                          }
+
+                          setTooltip({
+                            visible: true,
+                            x: pointerPos.x,
+                            y: pointerPos.y,
+                            content,
+                            title
+                          });
+                        }}
+                        onMouseLeave={() => {
+                          setTooltip(prev => ({ ...prev, visible: false }));
+                        }}
+                      >
+                        <Rect
+                          x={66}
+                          y={2}
+                          width={12}
+                          height={12}
+                          fill="#374151"
+                          stroke="#6b7280"
+                          strokeWidth={1}
+                          cornerRadius={2}
+                        />
+                        <Text
+                          x={72}
+                          y={8}
+                          text="i"
+                          fontSize={8}
+                          fill="#9ca3af"
+                          align="center"
+                        />
+                      </Group>
+                    )}
+                  </Group>
+                ))}
+              </Layer>
+            </Stage>
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-2xl mb-2">🌳</div>
+                <p className="text-xs text-gray-500">Loading tree view...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Tooltip overlay */}
+          {tooltip.visible && (
+            <div
+              className="absolute z-50 bg-gray-800 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 max-w-64 shadow-lg pointer-events-none"
+              style={{
+                left: Math.min(tooltip.x + 10, 250), // Keep within panel bounds
+                top: Math.max(tooltip.y - 10, 10),
+              }}
+            >
+              <div className="font-medium text-gray-200 mb-1">{tooltip.title}</div>
+              <div className="whitespace-pre-line">{tooltip.content}</div>
+            </div>
+          )}
+        </div>
       </div>
-      
+
       {/* Image Preview Modal */}
       <ImagePreviewModal
         open={previewModal.open}

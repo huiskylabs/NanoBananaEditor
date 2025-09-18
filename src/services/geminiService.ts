@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 
 // Note: In production, this should be handled via a backend proxy
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'demo-key';
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true' || !API_KEY || API_KEY === 'demo-key';
 const genAI = new GoogleGenAI({ apiKey: API_KEY });
 
 export interface GenerationRequest {
@@ -26,10 +27,57 @@ export interface SegmentationRequest {
 }
 
 export class GeminiService {
+  private mockImages = [
+    'https://picsum.photos/1024/1024?random=1',
+    'https://picsum.photos/1024/1024?random=2',
+    'https://picsum.photos/1024/1024?random=3',
+    'https://picsum.photos/1024/1024?random=4',
+    'https://picsum.photos/1024/1024?random=5',
+    'https://picsum.photos/1024/1024?random=6',
+    'https://picsum.photos/1024/1024?random=7',
+    'https://picsum.photos/1024/1024?random=8',
+  ];
+
+  private async getRandomMockImage(): Promise<string> {
+    const randomIndex = Math.floor(Math.random() * this.mockImages.length);
+    const imageUrl = this.mockImages[randomIndex];
+
+    try {
+      // Fetch the image and convert to base64
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          // Remove the data:image/jpeg;base64, prefix to get just the base64 string
+          const base64 = base64data.split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Error fetching mock image:', error);
+      // Return a simple base64 placeholder if fetch fails
+      return 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    }
+  }
+
   async generateImage(request: GenerationRequest): Promise<string[]> {
+    if (USE_MOCK) {
+      // Mock delay to simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+
+      console.log('🎨 Mock generating image for prompt:', request.prompt);
+
+      // Return a random mock image
+      const mockImage = await this.getRandomMockImage();
+      return [mockImage];
+    }
+
     try {
       const contents: any[] = [{ text: request.prompt }];
-      
+
       // Add reference images if provided
       if (request.referenceImages && request.referenceImages.length > 0) {
         request.referenceImages.forEach(image => {
@@ -63,6 +111,17 @@ export class GeminiService {
   }
 
   async editImage(request: EditRequest): Promise<string[]> {
+    if (USE_MOCK) {
+      // Mock delay to simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 800));
+
+      console.log('✏️ Mock editing image with instruction:', request.instruction);
+
+      // Return a different random mock image for edits
+      const mockImage = await this.getRandomMockImage();
+      return [mockImage];
+    }
+
     try {
       const contents = [
         { text: this.buildEditPrompt(request) },

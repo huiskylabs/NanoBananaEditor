@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser, Brush } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 export const ImageCanvas: React.FC = () => {
@@ -28,6 +28,7 @@ export const ImageCanvas: React.FC = () => {
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<number[]>([]);
+  const [brushMode, setBrushMode] = useState(false);
 
   // Load image and auto-fit when canvasImage changes
   useEffect(() => {
@@ -78,23 +79,23 @@ export const ImageCanvas: React.FC = () => {
   }, []);
 
   const handleMouseDown = (e: any) => {
-    if (selectedTool !== 'mask' || !image) return;
-    
+    if (!brushMode || !image) return;
+
     setIsDrawing(true);
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
-    
+
     // Use Konva's getRelativePointerPosition for accurate coordinates
     const relativePos = stage.getRelativePointerPosition();
-    
+
     // Calculate image bounds on the stage
     const imageX = (stageSize.width / canvasZoom - image.width) / 2;
     const imageY = (stageSize.height / canvasZoom - image.height) / 2;
-    
+
     // Convert to image-relative coordinates
     const relativeX = relativePos.x - imageX;
     const relativeY = relativePos.y - imageY;
-    
+
     // Check if click is within image bounds
     if (relativeX >= 0 && relativeX <= image.width && relativeY >= 0 && relativeY <= image.height) {
       setCurrentStroke([relativeX, relativeY]);
@@ -102,22 +103,22 @@ export const ImageCanvas: React.FC = () => {
   };
 
   const handleMouseMove = (e: any) => {
-    if (!isDrawing || selectedTool !== 'mask' || !image) return;
-    
+    if (!isDrawing || !brushMode || !image) return;
+
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
-    
+
     // Use Konva's getRelativePointerPosition for accurate coordinates
     const relativePos = stage.getRelativePointerPosition();
-    
+
     // Calculate image bounds on the stage
     const imageX = (stageSize.width / canvasZoom - image.width) / 2;
     const imageY = (stageSize.height / canvasZoom - image.height) / 2;
-    
+
     // Convert to image-relative coordinates
     const relativeX = relativePos.x - imageX;
     const relativeY = relativePos.y - imageY;
-    
+
     // Check if within image bounds
     if (relativeX >= 0 && relativeX <= image.width && relativeY >= 0 && relativeY <= image.height) {
       setCurrentStroke([...currentStroke, relativeX, relativeY]);
@@ -195,30 +196,36 @@ export const ImageCanvas: React.FC = () => {
 
           {/* Right side - Tools and actions */}
           <div className="flex items-center space-x-2">
-            {selectedTool === 'mask' && (
-              <>
-                <div className="flex items-center space-x-2 mr-2">
-                  <span className="text-xs text-gray-400">Brush:</span>
-                  <input
-                    type="range"
-                    min="5"
-                    max="50"
-                    value={brushSize}
-                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                    className="w-16 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <span className="text-xs text-gray-400 w-6">{brushSize}</span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearBrushStrokes}
-                  disabled={brushStrokes.length === 0}
-                >
-                  <Eraser className="h-4 w-4" />
-                </Button>
-              </>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBrushMode(!brushMode)}
+              className={cn(brushMode && 'bg-purple-400/10 border-purple-400/50')}
+            >
+              <Brush className="h-4 w-4" />
+            </Button>
+
+            <div className="flex items-center space-x-2 mr-2">
+              <span className="text-xs text-gray-400">Size:</span>
+              <input
+                type="range"
+                min="5"
+                max="50"
+                value={brushSize}
+                onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                className="w-16 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <span className="text-xs text-gray-400 w-6">{brushSize}</span>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearBrushStrokes}
+              disabled={brushStrokes.length === 0}
+            >
+              <Eraser className="h-4 w-4" />
+            </Button>
             
             <Button
               variant="outline"
@@ -279,18 +286,18 @@ export const ImageCanvas: React.FC = () => {
           scaleY={canvasZoom}
           x={canvasPan.x * canvasZoom}
           y={canvasPan.y * canvasZoom}
-          draggable={selectedTool !== 'mask'}
+          draggable={!brushMode}
           onDragEnd={(e) => {
-            setCanvasPan({ 
-              x: e.target.x() / canvasZoom, 
-              y: e.target.y() / canvasZoom 
+            setCanvasPan({
+              x: e.target.x() / canvasZoom,
+              y: e.target.y() / canvasZoom
             });
           }}
           onMouseDown={handleMouseDown}
           onMousemove={handleMouseMove}
           onMouseup={handleMouseUp}
-          style={{ 
-            cursor: selectedTool === 'mask' ? 'crosshair' : 'default' 
+          style={{
+            cursor: brushMode ? 'crosshair' : 'default'
           }}
         >
           <Layer>
@@ -348,18 +355,6 @@ export const ImageCanvas: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">
-              © 2025 Mark Fulton - 
-              <a
-                href="https://www.reinventing.ai/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-yellow-400 hover:text-yellow-300 transition-colors ml-1"
-              >
-                Reinventing.AI Solutions
-              </a>
-            </span>
-            <span className="text-gray-600 hidden md:inline">•</span>
             <span className="text-yellow-400 hidden md:inline">⚡</span>
             <span className="hidden md:inline">Powered by Gemini 2.5 Flash Image</span>
           </div>

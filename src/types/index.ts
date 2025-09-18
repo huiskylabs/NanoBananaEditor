@@ -20,11 +20,15 @@ export interface Generation {
   modelVersion: string;
   timestamp: number;
   costEstimate?: number;
+  // Tree relationship tracking
+  parentGenerationId?: string; // For sibling generations (iterations)
+  type: 'root' | 'iteration'; // Root = first gen, iteration = sibling of existing gen
 }
 
 export interface Edit {
   id: string;
-  parentGenerationId: string;
+  parentGenerationId?: string; // Parent generation (for edits directly from generations)
+  parentEditId?: string; // Parent edit (for nested edits)
   maskAssetId?: string;
   maskReferenceAsset?: Asset;
   instruction: string;

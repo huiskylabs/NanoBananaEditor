@@ -12,8 +12,6 @@ export const PromptComposer: React.FC = () => {
   const {
     currentPrompt,
     setCurrentPrompt,
-    selectedTool,
-    setSelectedTool,
     temperature,
     setTemperature,
     seed,
@@ -43,20 +41,22 @@ export const PromptComposer: React.FC = () => {
 
   const handleGenerate = () => {
     if (!currentPrompt.trim()) return;
-    
-    if (selectedTool === 'generate') {
+
+    // If there's a canvas image, it's an edit operation
+    if (canvasImage) {
+      edit(currentPrompt);
+    } else {
+      // Otherwise, it's a generation
       const referenceImages = uploadedImages
         .filter(img => img.includes('base64,'))
         .map(img => img.split('base64,')[1]);
-        
+
       generate({
         prompt: currentPrompt,
         referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         temperature,
         seed: seed || undefined
       });
-    } else if (selectedTool === 'edit' || selectedTool === 'mask') {
-      edit(currentPrompt);
     }
   };
 
@@ -66,26 +66,16 @@ export const PromptComposer: React.FC = () => {
       try {
         const base64 = await blobToBase64(file);
         const dataUrl = `data:${file.type};base64,${base64}`;
-        
-        if (selectedTool === 'generate') {
-          // Add to reference images (max 2)
-          if (uploadedImages.length < 2) {
-            addUploadedImage(dataUrl);
-          }
-        } else if (selectedTool === 'edit') {
-          // For edit mode, add to separate edit reference images (max 2)
+
+        if (canvasImage) {
+          // If there's already a canvas image, add as style reference for editing
           if (editReferenceImages.length < 2) {
             addEditReferenceImage(dataUrl);
           }
-          // Set as canvas image if none exists
-          if (!canvasImage) {
-            setCanvasImage(dataUrl);
-          }
-        } else if (selectedTool === 'mask') {
-          // For mask mode, set as canvas image immediately
-          clearUploadedImages();
-          addUploadedImage(dataUrl);
+        } else {
+          // If no canvas image, this becomes the main image to edit
           setCanvasImage(dataUrl);
+          addUploadedImage(dataUrl);
         }
       } catch (error) {
         console.error('Failed to upload image:', error);
@@ -104,11 +94,7 @@ export const PromptComposer: React.FC = () => {
     setShowClearConfirm(false);
   };
 
-  const tools = [
-    { id: 'generate', icon: Wand2, label: 'Generate', description: 'Create from text' },
-    { id: 'edit', icon: Edit3, label: 'Edit', description: 'Modify existing' },
-    { id: 'mask', icon: MousePointer, label: 'Select', description: 'Click to select' },
-  ] as const;
+  // Tool selection removed - masking is always available
 
   if (!showPromptPanel) {
     return (
@@ -131,45 +117,26 @@ export const PromptComposer: React.FC = () => {
   return (
     <>
     <div className="w-80 lg:w-72 xl:w-80 h-full bg-gray-950 border-r border-gray-800 p-6 flex flex-col space-y-6 overflow-y-auto">
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-300">Mode</h3>
-          <div className="flex items-center space-x-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowHintsModal(true)}
-              className="h-6 w-6"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowPromptPanel(false)}
-              className="h-6 w-6"
-              title="Hide Prompt Panel"
-            >
-              ×
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {tools.map((tool) => (
-            <button
-              key={tool.id}
-              onClick={() => setSelectedTool(tool.id)}
-              className={cn(
-                'flex flex-col items-center p-3 rounded-lg border transition-all duration-200',
-                selectedTool === tool.id
-                  ? 'bg-yellow-400/10 border-yellow-400/50 text-yellow-400'
-                  : 'bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-300'
-              )}
-            >
-              <tool.icon className="h-5 w-5 mb-1" />
-              <span className="text-xs font-medium">{tool.label}</span>
-            </button>
-          ))}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-gray-300">AI Image Editor</h3>
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowHintsModal(true)}
+            className="h-6 w-6"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowPromptPanel(false)}
+            className="h-6 w-6"
+            title="Hide Prompt Panel"
+          >
+            ×
+          </Button>
         </div>
       </div>
 
@@ -177,19 +144,11 @@ export const PromptComposer: React.FC = () => {
       <div>
         <div>
           <label className="text-sm font-medium text-gray-300 mb-1 block">
-            {selectedTool === 'generate' ? 'Reference Images' : selectedTool === 'edit' ? 'Style References' : 'Upload Image'}
+            {canvasImage ? 'Style References' : 'Upload Image'}
           </label>
-          {selectedTool === 'mask' && (
-            <p className="text-xs text-gray-400 mb-3">Edit an image with masks</p>
-          )}
-          {selectedTool === 'generate' && (
-            <p className="text-xs text-gray-500 mb-3">Optional, up to 2 images</p>
-          )}
-          {selectedTool === 'edit' && (
-            <p className="text-xs text-gray-500 mb-3">
-              {canvasImage ? 'Optional style references, up to 2 images' : 'Upload image to edit, up to 2 images'}
-            </p>
-          )}
+          <p className="text-xs text-gray-500 mb-3">
+            {canvasImage ? 'Optional style references for editing (up to 2)' : 'Upload image to edit or add reference images'}
+          </p>
           <input
             ref={fileInputRef}
             type="file"
@@ -201,28 +160,44 @@ export const PromptComposer: React.FC = () => {
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             className="w-full"
-            disabled={
-              (selectedTool === 'generate' && uploadedImages.length >= 2) ||
-              (selectedTool === 'edit' && editReferenceImages.length >= 2)
-            }
+            disabled={canvasImage && editReferenceImages.length >= 2}
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload
           </Button>
-          
+
           {/* Show uploaded images preview */}
-          {((selectedTool === 'generate' && uploadedImages.length > 0) || 
-            (selectedTool === 'edit' && editReferenceImages.length > 0)) && (
+          {((uploadedImages.length > 0) || (editReferenceImages.length > 0)) && (
             <div className="mt-3 space-y-2">
-              {(selectedTool === 'generate' ? uploadedImages : editReferenceImages).map((image, index) => (
-                <div key={index} className="relative">
+              {/* Show main uploaded images */}
+              {uploadedImages.map((image, index) => (
+                <div key={`upload-${index}`} className="relative">
+                  <img
+                    src={image}
+                    alt={`Image ${index + 1}`}
+                    className="w-full h-20 object-cover rounded-lg border border-gray-700"
+                  />
+                  <button
+                    onClick={() => removeUploadedImage(index)}
+                    className="absolute top-1 right-1 bg-gray-900/80 text-gray-400 hover:text-gray-200 rounded-full p-1 transition-colors"
+                  >
+                    ×
+                  </button>
+                  <div className="absolute bottom-1 left-1 bg-gray-900/80 text-xs px-2 py-1 rounded text-gray-300">
+                    Main
+                  </div>
+                </div>
+              ))}
+              {/* Show edit reference images */}
+              {editReferenceImages.map((image, index) => (
+                <div key={`ref-${index}`} className="relative">
                   <img
                     src={image}
                     alt={`Reference ${index + 1}`}
                     className="w-full h-20 object-cover rounded-lg border border-gray-700"
                   />
                   <button
-                    onClick={() => selectedTool === 'generate' ? removeUploadedImage(index) : removeEditReferenceImage(index)}
+                    onClick={() => removeEditReferenceImage(index)}
                     className="absolute top-1 right-1 bg-gray-900/80 text-gray-400 hover:text-gray-200 rounded-full p-1 transition-colors"
                   >
                     ×
@@ -240,15 +215,15 @@ export const PromptComposer: React.FC = () => {
       {/* Prompt Input */}
       <div>
         <label className="text-sm font-medium text-gray-300 mb-3 block">
-          {selectedTool === 'generate' ? 'Describe what you want to create' : 'Describe your changes'}
+          {canvasImage ? 'Describe your changes' : 'Describe what you want to create'}
         </label>
         <Textarea
           value={currentPrompt}
           onChange={(e) => setCurrentPrompt(e.target.value)}
           placeholder={
-            selectedTool === 'generate'
-              ? 'A serene mountain landscape at sunset with a lake reflecting the golden sky...'
-              : 'Make the sky more dramatic, add storm clouds...'
+            canvasImage
+              ? 'Make the sky more dramatic, add storm clouds...'
+              : 'A serene mountain landscape at sunset with a lake reflecting the golden sky...'
           }
           className="min-h-[120px] resize-none"
         />
@@ -288,7 +263,7 @@ export const PromptComposer: React.FC = () => {
         ) : (
           <>
             <Wand2 className="h-4 w-4 mr-2" />
-            {selectedTool === 'generate' ? 'Generate' : 'Apply Edit'}
+            {canvasImage ? 'Apply Edit' : 'Generate'}
           </>
         )}
       </Button>

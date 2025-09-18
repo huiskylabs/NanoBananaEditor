@@ -5,7 +5,7 @@ import { generateId } from '../utils/imageUtils';
 import { Generation, Edit, Asset } from '../types';
 
 export const useImageGeneration = () => {
-  const { addGeneration, setIsGenerating, setCanvasImage, setCurrentProject, currentProject } = useAppStore();
+  const { addGeneration, setIsGenerating, setCanvasImage, setCurrentProject, currentProject, selectedGenerationId, selectedEditId } = useAppStore();
 
   const generateMutation = useMutation({
     mutationFn: async (request: GenerationRequest) => {
@@ -27,11 +27,38 @@ export const useImageGeneration = () => {
           checksum: base64.slice(0, 32) // Simple checksum
         }));
 
+        // Determine the correct parent for the new generation
+        let parentId: string | undefined = undefined;
+        let isIteration = false;
+
+        console.log('Generation logic:', { selectedGenerationId, selectedEditId });
+
+        if (selectedGenerationId) {
+          // If a generation is selected, new generation should be a child of that generation
+          parentId = selectedGenerationId;
+          isIteration = true;
+          console.log('Using selectedGenerationId as parent:', parentId);
+        } else if (selectedEditId) {
+          // If an edit is selected, new generation should be sibling of that edit
+          // (both children of the edit's parent generation)
+          const selectedEdit = currentProject?.edits.find(e => e.id === selectedEditId);
+          if (selectedEdit) {
+            parentId = selectedEdit.parentGenerationId; // Parent generation of the edit
+            isIteration = true;
+            console.log('Using edit parent as parent:', parentId, 'for edit:', selectedEditId);
+          }
+        }
+
+        // If no selection, it's a root
+        if (!parentId) {
+          isIteration = false;
+          console.log('No parent, creating root generation');
+        }
+
         const generation: Generation = {
           id: generateId(),
           prompt: request.prompt,
           parameters: {
-            aspectRatio: '1:1',
             seed: request.seed,
             temperature: request.temperature
           },
@@ -54,11 +81,19 @@ export const useImageGeneration = () => {
           })) : [],
           outputAssets,
           modelVersion: 'gemini-2.5-flash-image-preview',
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          // Tree relationship fields
+          parentGenerationId: parentId,
+          type: isIteration ? 'iteration' : 'root'
         };
 
         addGeneration(generation);
         setCanvasImage(outputAssets[0].url);
+
+        // Auto-select the new generation and clear edit selection
+        const { selectGeneration, selectEdit } = useAppStore.getState();
+        selectGeneration(generation.id);
+        selectEdit(null);
         
         // Create project if none exists
         if (!currentProject) {
@@ -89,17 +124,18 @@ export const useImageGeneration = () => {
 };
 
 export const useImageEditing = () => {
-  const { 
-    addEdit, 
-    setIsGenerating, 
-    setCanvasImage, 
-    canvasImage, 
+  const {
+    addEdit,
+    setIsGenerating,
+    setCanvasImage,
+    canvasImage,
     editReferenceImages,
     brushStrokes,
     selectedGenerationId,
+    selectedEditId,
     currentProject,
     seed,
-    temperature 
+    temperature
   } = useAppStore();
 
   const editMutation = useMutation({
@@ -240,9 +276,27 @@ export const useImageEditing = () => {
           checksum: maskedReferenceImage.slice(0, 32)
         } : undefined;
 
+        // Determine the correct parent for the new edit
+        let parentGenerationId: string | undefined;
+        let parentEditId: string | undefined;
+
+        if (selectedEditId) {
+          // If an edit is selected, the new edit should be a child of that edit
+          parentEditId = selectedEditId;
+        } else if (selectedGenerationId) {
+          // If a generation is selected, new edit should be child of that generation
+          parentGenerationId = selectedGenerationId;
+        } else {
+          // Fallback to most recent generation
+          parentGenerationId = currentProject?.generations[currentProject.generations.length - 1]?.id || '';
+        }
+
+        console.log('Edit logic:', { selectedGenerationId, selectedEditId, parentGenerationId, parentEditId });
+
         const edit: Edit = {
           id: generateId(),
-          parentGenerationId: selectedGenerationId || (currentProject?.generations[currentProject.generations.length - 1]?.id || ''),
+          parentGenerationId,
+          parentEditId,
           maskAssetId: brushStrokes.length > 0 ? generateId() : undefined,
           maskReferenceAsset,
           instruction,
@@ -253,10 +307,10 @@ export const useImageEditing = () => {
         addEdit(edit);
         
         // Automatically load the edited image in the canvas
-        const { selectEdit, selectGeneration } = useAppStore.getState();
+        const { selectEdit } = useAppStore.getState();
         setCanvasImage(outputAssets[0].url);
         selectEdit(edit.id);
-        selectGeneration(null);
+        // Keep the selected generation so subsequent edits can use it as parent
       }
       setIsGenerating(false);
     },
