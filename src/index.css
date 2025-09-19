@@ -77,14 +77,6 @@ body {
 }
 
 /* Enhanced hover effects */
-button:hover,
-.group:hover .group-hover\:bg-zinc-700,
-.group:hover .group-hover\:text-zinc-400,
-.group:hover .group-hover\:border-zinc-600 {
-  transform: translateY(-1px);
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 button:active {
   transform: translateY(0);
   transition-duration: 75ms;

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy, Target, GitBranch } from 'lucide-react';
+import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy, Target, GitBranch, ChevronRight } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { ImagePreviewModal } from './ImagePreviewModal';
 import { Stage, Layer, Image as KonvaImage, Group, Rect, Text, Line, Path } from 'react-konva';
@@ -668,7 +668,7 @@ export const HistoryPanel: React.FC = () => {
               className="h-6 w-6"
               title="Hide History Panel"
             >
-              ×
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>

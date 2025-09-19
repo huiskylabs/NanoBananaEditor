@@ -3,7 +3,7 @@ import { Textarea } from './ui/Textarea';
 import { Button } from './ui/Button';
 import { useAppStore } from '../store/useAppStore';
 import { useImageGeneration } from '../hooks/useImageGeneration';
-import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, ChevronRight, RotateCcw, ChevronLeft } from 'lucide-react';
 import { blobToBase64, generateId } from '../utils/imageUtils';
 import { PromptHints } from './PromptHints';
 import { AspectRatioSlider } from './AspectRatioSlider';
@@ -191,7 +191,7 @@ export const PromptComposer: React.FC = () => {
             className="h-6 w-6"
             title="Hide Prompt Panel"
           >
-            ×
+            <ChevronLeft className="h-4 w-4" />
           </Button>
         </div>
       </div>

@@ -240,7 +240,7 @@ export const ImageCanvas: React.FC = () => {
           if (canvasImages.length > 0 && !currentProject && !selectedGenerationId && !selectedEditId) {
             const uploadGeneration = {
               id: generateId(),
-              prompt: 'Uploaded images',
+              prompt: '',
               parameters: { seed: undefined, temperature: 0.7 },
               gridLayout: {
                 order: canvasImages.map((_, i) => i),
