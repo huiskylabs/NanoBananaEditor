@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
@@ -6,6 +6,7 @@ import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser, Brush } from
 import { cn } from '../utils/cn';
 import { blobToBase64 } from '../utils/imageUtils';
 import { generateId } from '../utils/imageUtils';
+import { createBrushCursorCached } from '../utils/brushCursor';
 
 export const ImageCanvas: React.FC = () => {
   const {
@@ -21,6 +22,7 @@ export const ImageCanvas: React.FC = () => {
     showMasks,
     setShowMasks,
     selectedTool,
+    setSelectedTool,
     isGenerating,
     brushSize,
     setBrushSize,
@@ -32,8 +34,13 @@ export const ImageCanvas: React.FC = () => {
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<number[]>([]);
-  const [brushMode, setBrushMode] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Create custom brush cursor with accurate size
+  const brushCursor = useMemo(() => {
+    if (selectedTool !== 'mask') return 'default';
+    return createBrushCursorCached(brushSize, canvasZoom);
+  }, [selectedTool, brushSize, canvasZoom]);
 
   // Load images and auto-fit when canvasImages changes
   const [gridImages, setGridImages] = useState<(HTMLImageElement | null)[]>([]);
@@ -92,7 +99,7 @@ export const ImageCanvas: React.FC = () => {
   }, []);
 
   const handleMouseDown = (e: any) => {
-    if (!brushMode || gridImages.length === 0) return;
+    if (selectedTool !== 'mask' || gridImages.length === 0) return;
 
     setIsDrawing(true);
     const stage = e.target.getStage();
@@ -125,7 +132,7 @@ export const ImageCanvas: React.FC = () => {
   };
 
   const handleMouseMove = (e: any) => {
-    if (!isDrawing || !brushMode || gridImages.length === 0) return;
+    if (!isDrawing || selectedTool !== 'mask' || gridImages.length === 0) return;
 
     const stage = e.target.getStage();
     const relativePos = stage.getRelativePointerPosition();
@@ -304,8 +311,8 @@ export const ImageCanvas: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setBrushMode(!brushMode)}
-              className={cn(brushMode && 'bg-purple-400/10 border-purple-400/50')}
+              onClick={() => setSelectedTool(selectedTool === 'mask' ? 'generate' : 'mask')}
+              className={cn(selectedTool === 'mask' && 'bg-purple-400/10 border-purple-400/50')}
             >
               <Brush className="h-4 w-4" />
             </Button>
@@ -397,7 +404,7 @@ export const ImageCanvas: React.FC = () => {
           scaleY={canvasZoom}
           x={canvasPan.x * canvasZoom}
           y={canvasPan.y * canvasZoom}
-          draggable={!brushMode}
+          draggable={selectedTool !== 'mask'}
           onDragEnd={(e) => {
             setCanvasPan({
               x: e.target.x() / canvasZoom,
@@ -408,7 +415,7 @@ export const ImageCanvas: React.FC = () => {
           onMousemove={handleMouseMove}
           onMouseup={handleMouseUp}
           style={{
-            cursor: brushMode ? 'crosshair' : 'default'
+            cursor: brushCursor
           }}
         >
           <Layer>
@@ -496,20 +503,37 @@ export const ImageCanvas: React.FC = () => {
             })}
             
             {/* Current stroke being drawn */}
-            {isDrawing && currentStroke.length > 2 && gridImages.length > 0 && (
-              <Line
-                points={currentStroke}
-                stroke="#A855F7"
-                strokeWidth={brushSize}
-                tension={0.5}
-                lineCap="round"
-                lineJoin="round"
-                globalCompositeOperation="source-over"
-                opacity={0.6}
-                x={(stageSize.width / canvasZoom - canvasGridLayout.columns * 620) / 2}
-                y={(stageSize.height / canvasZoom - Math.ceil(gridImages.length / canvasGridLayout.columns) * 620) / 2}
-              />
-            )}
+            {isDrawing && currentStroke.length > 2 && gridImages.length > 0 && (() => {
+              const { columns } = canvasGridLayout;
+              // Dynamic grid size based on number of images and screen size
+              const baseSize = Math.min(stageSize.width, stageSize.height) * 0.8;
+              const rows = Math.ceil(gridImages.length / canvasGridLayout.columns);
+              const maxDimension = Math.max(canvasGridLayout.columns, rows);
+              const calculatedSize = gridImages.length > 0 ? baseSize / maxDimension : 600;
+              const gridSize = Math.max(300, Math.min(600, calculatedSize));
+              const spacing = 20;
+              const totalWidth = columns * gridSize + (columns - 1) * spacing;
+              const totalHeight = Math.ceil(gridImages.length / columns) * gridSize +
+                                (Math.ceil(gridImages.length / columns) - 1) * spacing;
+
+              const startX = (stageSize.width / canvasZoom - totalWidth) / 2;
+              const startY = (stageSize.height / canvasZoom - totalHeight) / 2;
+
+              return (
+                <Line
+                  points={currentStroke}
+                  stroke="#A855F7"
+                  strokeWidth={brushSize}
+                  tension={0.5}
+                  lineCap="round"
+                  lineJoin="round"
+                  globalCompositeOperation="source-over"
+                  opacity={0.6}
+                  x={startX}
+                  y={startY}
+                />
+              );
+            })()}
           </Layer>
         </Stage>
       </div>
