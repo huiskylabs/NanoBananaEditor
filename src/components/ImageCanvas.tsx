@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser, Brush, Sparkles } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser, Brush, Sparkles, ChevronUp, ChevronDown, Copy } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { blobToBase64 } from '../utils/imageUtils';
 import { generateId } from '../utils/imageUtils';
@@ -27,8 +27,11 @@ export const ImageCanvas: React.FC = () => {
     brushSize,
     setBrushSize,
     addCanvasImage,
-    reorderCanvasImages
+    reorderCanvasImages,
+    currentNodeDetails
   } = useAppStore();
+
+  const [isStatusExpanded, setIsStatusExpanded] = useState(false);
 
   const stageRef = useRef<any>(null);
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
@@ -542,19 +545,147 @@ export const ImageCanvas: React.FC = () => {
         </Stage>
       </div>
 
-      {/* Status Bar */}
-      <div className="p-3 border-t border-zinc-800 bg-zinc-950">
-        <div className="flex items-center justify-between text-xs text-zinc-500">
-          <div className="flex items-center space-x-4">
-            {canvasImages.length > 0 && (
-              <span className="text-green-400">{canvasImages.length} image{canvasImages.length !== 1 ? 's' : ''}</span>
-            )}
-            {brushStrokes.length > 0 && (
-              <span className="text-yellow-400">{brushStrokes.length} brush stroke{brushStrokes.length !== 1 ? 's' : ''}</span>
+      {/* Enhanced Status Bar */}
+      <div className="border-t border-zinc-800 bg-zinc-950">
+        {/* Quick Status Row */}
+        <div className="p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 text-xs text-zinc-500">
+              {canvasImages.length > 0 && (
+                <span className="text-green-400">{canvasImages.length} image{canvasImages.length !== 1 ? 's' : ''}</span>
+              )}
+              {brushStrokes.length > 0 && (
+                <span className="text-yellow-400">{brushStrokes.length} brush stroke{brushStrokes.length !== 1 ? 's' : ''}</span>
+              )}
+              {currentNodeDetails && (
+                <>
+                  <span className="text-zinc-400">•</span>
+                  <span className="text-blue-400">
+                    {currentNodeDetails.type === 'generation' ? 'Generated' : 'Edit'} ({currentNodeDetails.modelVersion || 'Unknown'})
+                  </span>
+                  {currentNodeDetails.prompt && (
+                    <>
+                      <span className="text-zinc-400">•</span>
+                      <span className="text-zinc-400 truncate max-w-[200px]">"{currentNodeDetails.prompt}"</span>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {currentNodeDetails && (
+              <Button
+                variant="ghost"
+                size="iconSm"
+                onClick={() => setIsStatusExpanded(!isStatusExpanded)}
+                className="h-6 w-6"
+              >
+                {isStatusExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+              </Button>
             )}
           </div>
-          
         </div>
+
+        {/* Expanded Details Panel */}
+        {isStatusExpanded && currentNodeDetails && (
+          <div className="px-3 pb-3 border-t border-zinc-800/50">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-3 text-xs">
+              {/* Left Column - Generation Details */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400 font-medium">Generation</span>
+                  <Button variant="ghost" size="iconSm" className="h-4 w-4 opacity-50 hover:opacity-100">
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Type:</span>
+                    <span className="text-zinc-300 capitalize">{currentNodeDetails.type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Model:</span>
+                    <span className="text-zinc-300">{currentNodeDetails.modelVersion || 'Unknown'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Created:</span>
+                    <span className="text-zinc-300">
+                      {new Date(currentNodeDetails.timestamp).toLocaleString()}
+                    </span>
+                  </div>
+                  {currentNodeDetails.parameters?.seed && (
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Seed:</span>
+                      <span className="text-zinc-300 font-mono">{currentNodeDetails.parameters.seed}</span>
+                    </div>
+                  )}
+                  {currentNodeDetails.parameters?.temperature !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Temperature:</span>
+                      <span className="text-zinc-300">{currentNodeDetails.parameters.temperature}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column - Canvas Details */}
+              <div className="space-y-2">
+                <span className="text-zinc-400 font-medium">Canvas</span>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Images:</span>
+                    <span className="text-zinc-300">{canvasImages.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Layout:</span>
+                    <span className="text-zinc-300">{canvasGridLayout.columns} columns</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Zoom:</span>
+                    <span className="text-zinc-300">{Math.round(canvasZoom * 100)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Masks:</span>
+                    <span className="text-zinc-300">{brushStrokes.length} stroke{brushStrokes.length !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Full-width Image Details */}
+              {canvasImages.length > 0 && (
+                <div className="lg:col-span-2 space-y-2">
+                  <span className="text-zinc-400 font-medium">Image Details</span>
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-2">
+                    <div className="space-y-1">
+                      {canvasImages.map((image, index) => (
+                        <div key={image.id} className="flex justify-between items-center text-xs">
+                          <span className="text-zinc-400">
+                            {canvasImages.length > 1 ? `Image ${index + 1}:` : 'Image:'}
+                          </span>
+                          <span className="text-zinc-300 font-mono">
+                            {image.width} × {image.height}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Full-width Prompt Display */}
+              {currentNodeDetails.prompt && (
+                <div className="lg:col-span-2 space-y-2">
+                  <span className="text-zinc-400 font-medium">Prompt</span>
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-2">
+                    <p className="text-zinc-300 text-xs leading-relaxed">{currentNodeDetails.prompt}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

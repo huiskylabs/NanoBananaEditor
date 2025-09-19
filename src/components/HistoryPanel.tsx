@@ -105,10 +105,14 @@ export const HistoryPanel: React.FC = () => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
 
-    // Set thumbnail size
-    const thumbnailSize = 60;
+    // Set thumbnail size - higher resolution for better quality
+    const thumbnailSize = 180;
     canvas.width = thumbnailSize;
     canvas.height = thumbnailSize;
+
+    // Enable high-quality image rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // Fill with dark background
     ctx.fillStyle = '#1f2937';
@@ -852,88 +856,6 @@ export const HistoryPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Current Node Details - Fixed Bottom Panel */}
-      <div className="flex-shrink-0 border-t border-zinc-800">
-      {currentNodeDetails ? (
-        <div className="pt-3">
-          <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 max-h-40 overflow-y-auto">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-zinc-300">Canvas Details</h4>
-            </div>
-          <div className="space-y-2 text-sm">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-zinc-400 text-xs">Prompt:</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-5 w-5 p-0 text-zinc-400 hover:text-zinc-200"
-                  onClick={() => copyToClipboard(currentNodeDetails.prompt)}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="text-zinc-300 text-sm leading-relaxed break-words bg-zinc-800/50 rounded p-2 border border-zinc-700 max-h-20 overflow-y-auto">
-                {currentNodeDetails.prompt}
-              </div>
-            </div>
-            {/* Images Section */}
-            {currentNodeDetails.outputAssets && currentNodeDetails.outputAssets.length > 0 && (
-              <div>
-                <span className="text-zinc-400 text-xs">
-                  Images ({currentNodeDetails.outputAssets.length}):
-                </span>
-                <div className="text-zinc-300 text-sm space-y-1 mt-1">
-                  {currentNodeDetails.outputAssets.map((asset, index) => (
-                    <div key={asset.id} className="text-xs">
-                      {currentNodeDetails.outputAssets.length > 1 ? `Image ${index + 1}: ` : ''}
-                      {asset.width}×{asset.height}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              {currentNodeDetails.modelVersion && (
-                <div>
-                  <span className="text-zinc-400">Model:</span>
-                  <div className="text-zinc-300 truncate">{currentNodeDetails.modelVersion}</div>
-                </div>
-              )}
-              {currentNodeDetails.temperature !== undefined && (
-                <div>
-                  <span className="text-zinc-400">Temperature:</span>
-                  <div className="text-zinc-300">{currentNodeDetails.temperature}</div>
-                </div>
-              )}
-              {currentNodeDetails.seed !== undefined && currentNodeDetails.seed !== null && (
-                <div>
-                  <span className="text-zinc-400">Seed:</span>
-                  <div className="text-zinc-300">{currentNodeDetails.seed}</div>
-                </div>
-              )}
-              {currentNodeDetails.timestamp && (
-                <div>
-                  <span className="text-zinc-400">Created:</span>
-                  <div className="text-zinc-300">{new Date(currentNodeDetails.timestamp).toLocaleDateString()}</div>
-                </div>
-              )}
-            </div>
-          </div>
-          </div>
-        </div>
-      ) : (
-        <div className="pt-3">
-          <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 h-24 flex items-center justify-center">
-            <div className="text-center">
-              <h4 className="text-sm font-medium text-zinc-400 mb-1">No Canvas Selected</h4>
-              <p className="text-xs text-zinc-500">Click a canvas in the tree to view details</p>
-            </div>
-          </div>
-        </div>
-      )}
-      </div>
 
       {/* Image Preview Modal */}
       <ImagePreviewModal
