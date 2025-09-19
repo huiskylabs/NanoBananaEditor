@@ -13,9 +13,9 @@ export const InfoModal: React.FC<InfoModalProps> = ({ open, onOpenChange }) => {
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-4xl z-50">
+        <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-zinc-900 border border-zinc-700 rounded-lg p-6 w-full max-w-4xl z-50">
           <div className="flex items-center justify-between mb-4">
-            <Dialog.Title className="text-lg font-semibold text-gray-100">
+            <Dialog.Title className="text-lg font-semibold text-zinc-100">
               About Nano Banana AI Image Editor
             </Dialog.Title>
             <Dialog.Close asChild>
@@ -26,7 +26,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ open, onOpenChange }) => {
           </div>
           
           <div className="space-y-4">
-            <div className="space-y-3 text-sm text-gray-300">
+            <div className="space-y-3 text-sm text-zinc-300">
               <p>
                 Developed by{' '}
                 <a
@@ -48,7 +48,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ open, onOpenChange }) => {
                       Learn to Build AI Apps & More Solutions
                     </h4>
                   </div>
-                  <p className="text-sm text-gray-300 mb-4">
+                  <p className="text-sm text-zinc-300 mb-4">
                     Learn to vibe code apps like this one and master AI automation, build intelligent agents, and create cutting-edge solutions that drive real business results.
                   </p>
                   <a
@@ -69,7 +69,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ open, onOpenChange }) => {
                       Get a Copy of This App
                     </h4>
                   </div>
-                  <p className="text-sm text-gray-300 mb-4">
+                  <p className="text-sm text-zinc-300 mb-4">
                     Get a copy of this app by joining the Vibe Coding is Life Skool community. Live build sessions, app projects, resources and more in the best vibe coding community on the web.
                   </p>
                   <a

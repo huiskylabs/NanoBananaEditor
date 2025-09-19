@@ -554,16 +554,16 @@ export const HistoryPanel: React.FC = () => {
 
   if (!showHistory) {
     return (
-      <div className="w-8 bg-gray-950 border-l border-gray-800 flex flex-col items-center justify-center">
+      <div className="w-8 bg-zinc-950 border-l border-zinc-800 flex flex-col items-center justify-center">
         <button
           onClick={() => setShowHistory(true)}
-          className="w-6 h-16 bg-gray-800 hover:bg-gray-700 rounded-l-lg border border-r-0 border-gray-700 flex items-center justify-center transition-colors group"
+          className="w-6 h-16 bg-zinc-800 hover:bg-zinc-700 rounded-l-lg border border-r-0 border-zinc-700 flex items-center justify-center transition-colors group"
           title="Show History Panel"
         >
           <div className="flex flex-col space-y-1">
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
           </div>
         </button>
       </div>
@@ -572,14 +572,14 @@ export const HistoryPanel: React.FC = () => {
 
   return (
     <div
-      className="bg-gray-950 border-l border-gray-800 p-6 flex flex-col h-full"
+      className="bg-zinc-950 border-l border-zinc-800 p-6 flex flex-col h-full"
       style={{ width: `${historyPanelWidth}px` }}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
-          <History className="h-5 w-5 text-gray-400" />
-          <h3 className="text-sm font-medium text-gray-300">Generations</h3>
+          <History className="h-5 w-5 text-zinc-400" />
+          <h3 className="text-sm font-medium text-zinc-300">Generations</h3>
         </div>
         <div className="flex items-center space-x-0.5">
             <Button
@@ -677,13 +677,13 @@ export const HistoryPanel: React.FC = () => {
       <div className="flex-1 flex flex-col min-h-0">
         <div
           ref={containerRef}
-          className="flex-1 bg-gray-900 rounded-lg border border-gray-700 overflow-hidden relative min-h-0"
+          className="flex-1 bg-zinc-900 rounded-lg border border-zinc-700 overflow-hidden relative min-h-0"
         >
           {nodes.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="text-2xl mb-2">🌳</div>
-                <p className="text-xs text-gray-500">No generations yet</p>
+                <p className="text-xs text-zinc-500">No generations yet</p>
               </div>
             </div>
           ) : stageSize.width > 0 && stageSize.height > 0 ? (
@@ -840,7 +840,7 @@ export const HistoryPanel: React.FC = () => {
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="text-2xl mb-2">🌳</div>
-                <p className="text-xs text-gray-500">Loading tree view...</p>
+                <p className="text-xs text-zinc-500">Loading tree view...</p>
               </div>
             </div>
           )}
@@ -849,37 +849,37 @@ export const HistoryPanel: React.FC = () => {
       </div>
 
       {/* Current Node Details - Fixed Bottom Panel */}
-      <div className="flex-shrink-0 border-t border-gray-800">
+      <div className="flex-shrink-0 border-t border-zinc-800">
       {currentNodeDetails ? (
         <div className="pt-3">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 max-h-40 overflow-y-auto">
+          <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 max-h-40 overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-300">Canvas Details</h4>
+              <h4 className="text-sm font-medium text-zinc-300">Canvas Details</h4>
             </div>
           <div className="space-y-2 text-sm">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-400 text-xs">Prompt:</span>
+                <span className="text-zinc-400 text-xs">Prompt:</span>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-5 w-5 p-0 text-gray-400 hover:text-gray-200"
+                  className="h-5 w-5 p-0 text-zinc-400 hover:text-zinc-200"
                   onClick={() => copyToClipboard(currentNodeDetails.prompt)}
                 >
                   <Copy className="h-3 w-3" />
                 </Button>
               </div>
-              <div className="text-gray-300 text-sm leading-relaxed break-words bg-gray-800/50 rounded p-2 border border-gray-700 max-h-20 overflow-y-auto">
+              <div className="text-zinc-300 text-sm leading-relaxed break-words bg-zinc-800/50 rounded p-2 border border-zinc-700 max-h-20 overflow-y-auto">
                 {currentNodeDetails.prompt}
               </div>
             </div>
             {/* Images Section */}
             {currentNodeDetails.outputAssets && currentNodeDetails.outputAssets.length > 0 && (
               <div>
-                <span className="text-gray-400 text-xs">
+                <span className="text-zinc-400 text-xs">
                   Images ({currentNodeDetails.outputAssets.length}):
                 </span>
-                <div className="text-gray-300 text-sm space-y-1 mt-1">
+                <div className="text-zinc-300 text-sm space-y-1 mt-1">
                   {currentNodeDetails.outputAssets.map((asset, index) => (
                     <div key={asset.id} className="text-xs">
                       {currentNodeDetails.outputAssets.length > 1 ? `Image ${index + 1}: ` : ''}
@@ -893,26 +893,26 @@ export const HistoryPanel: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 text-xs">
               {currentNodeDetails.modelVersion && (
                 <div>
-                  <span className="text-gray-400">Model:</span>
-                  <div className="text-gray-300 truncate">{currentNodeDetails.modelVersion}</div>
+                  <span className="text-zinc-400">Model:</span>
+                  <div className="text-zinc-300 truncate">{currentNodeDetails.modelVersion}</div>
                 </div>
               )}
               {currentNodeDetails.temperature !== undefined && (
                 <div>
-                  <span className="text-gray-400">Temperature:</span>
-                  <div className="text-gray-300">{currentNodeDetails.temperature}</div>
+                  <span className="text-zinc-400">Temperature:</span>
+                  <div className="text-zinc-300">{currentNodeDetails.temperature}</div>
                 </div>
               )}
               {currentNodeDetails.seed !== undefined && currentNodeDetails.seed !== null && (
                 <div>
-                  <span className="text-gray-400">Seed:</span>
-                  <div className="text-gray-300">{currentNodeDetails.seed}</div>
+                  <span className="text-zinc-400">Seed:</span>
+                  <div className="text-zinc-300">{currentNodeDetails.seed}</div>
                 </div>
               )}
               {currentNodeDetails.timestamp && (
                 <div>
-                  <span className="text-gray-400">Created:</span>
-                  <div className="text-gray-300">{new Date(currentNodeDetails.timestamp).toLocaleDateString()}</div>
+                  <span className="text-zinc-400">Created:</span>
+                  <div className="text-zinc-300">{new Date(currentNodeDetails.timestamp).toLocaleDateString()}</div>
                 </div>
               )}
             </div>
@@ -921,10 +921,10 @@ export const HistoryPanel: React.FC = () => {
         </div>
       ) : (
         <div className="pt-3">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 h-24 flex items-center justify-center">
+          <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 h-24 flex items-center justify-center">
             <div className="text-center">
-              <h4 className="text-sm font-medium text-gray-400 mb-1">No Canvas Selected</h4>
-              <p className="text-xs text-gray-500">Click a canvas in the tree to view details</p>
+              <h4 className="text-sm font-medium text-zinc-400 mb-1">No Canvas Selected</h4>
+              <p className="text-xs text-zinc-500">Click a canvas in the tree to view details</p>
             </div>
           </div>
         </div>

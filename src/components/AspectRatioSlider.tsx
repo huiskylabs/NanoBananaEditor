@@ -68,7 +68,7 @@ export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onC
                 setHoveredIndex(null);
               }
             }}
-            className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
+            className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
             style={{
               background: `linear-gradient(to right,
                 #6366f1 0%,
@@ -81,7 +81,7 @@ export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onC
           {/* Hover preview */}
           {hoveredIndex !== null && (
             <div
-              className="absolute bottom-full mb-2 bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg z-10"
+              className="absolute bottom-full mb-2 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-lg z-10"
               style={{
                 left: `${(hoveredIndex / (ASPECT_RATIOS.length - 1)) * 100}%`,
                 transform: 'translateX(-50%)'
@@ -90,15 +90,15 @@ export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onC
               <div className="flex flex-col items-center space-y-2">
                 {/* Preview rectangle */}
                 <div
-                  className="bg-gray-600 border border-gray-500 rounded"
+                  className="bg-zinc-600 border border-zinc-500 rounded"
                   style={getPreviewSize(ASPECT_RATIOS[hoveredIndex])}
                 />
-                <span className="text-xs text-gray-300 whitespace-nowrap">
+                <span className="text-xs text-zinc-300 whitespace-nowrap">
                   {ASPECT_RATIOS[hoveredIndex].label}
                 </span>
               </div>
               {/* Arrow */}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-700" />
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-zinc-700" />
             </div>
           )}
         </div>
@@ -106,7 +106,7 @@ export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onC
         {/* Icons and Size Label on Same Row */}
         <div className="flex justify-between items-center mt-2">
           {/* Horizontal Icon (Left) */}
-          <div className="text-gray-500 opacity-40">
+          <div className="text-zinc-500 opacity-40">
             <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 16 16" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg">
               <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"></path>
               <path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13zm13 1a.5.5 0 0 1 .5.5v6l-3.775-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12v.54A.505.505 0 0 1 1 12.5v-9a.5.5 0 0 1 .5-.5h13z"></path>
@@ -114,12 +114,12 @@ export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onC
           </div>
 
           {/* Current selection label (Center) */}
-          <span className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
+          <span className="text-xs text-zinc-400 bg-zinc-800 px-2 py-1 rounded">
             {value.label}
           </span>
 
           {/* Vertical Icon (Right) */}
-          <div className="text-gray-500 opacity-40 transform rotate-90">
+          <div className="text-zinc-500 opacity-40 transform rotate-90">
             <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 16 16" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg">
               <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"></path>
               <path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13zm13 1a.5.5 0 0 1 .5.5v6l-3.775-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12v.54A.505.505 0 0 1 1 12.5v-9a.5.5 0 0 1 .5-.5h13z"></path>
@@ -130,7 +130,7 @@ export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onC
         {/* Hover preview */}
         {hoveredIndex !== null && (
           <div
-            className="absolute bottom-full mb-2 bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-lg z-10"
+            className="absolute bottom-full mb-2 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-lg z-10"
             style={{
               left: `${(hoveredIndex / (ASPECT_RATIOS.length - 1)) * 100}%`,
               transform: 'translateX(-50%)'
@@ -139,15 +139,15 @@ export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onC
             <div className="flex flex-col items-center space-y-2">
               {/* Preview rectangle */}
               <div
-                className="bg-gray-600 border border-gray-500 rounded"
+                className="bg-zinc-600 border border-zinc-500 rounded"
                 style={getPreviewSize(ASPECT_RATIOS[hoveredIndex])}
               />
-              <span className="text-xs text-gray-300 whitespace-nowrap">
+              <span className="text-xs text-zinc-300 whitespace-nowrap">
                 {ASPECT_RATIOS[hoveredIndex].label}
               </span>
             </div>
             {/* Arrow */}
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-700" />
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-zinc-700" />
           </div>
         )}
       </div>

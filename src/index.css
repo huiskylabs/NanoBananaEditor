@@ -20,16 +20,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(17 24 39);
+  background: rgb(9 9 11);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(75 85 99);
+  background: rgb(63 63 70);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(107 114 128);
+  background: rgb(82 82 91);
 }
 
 /* Custom range slider styling */
@@ -40,7 +40,7 @@ body {
   border-radius: 50%;
   background: #FDE047;
   cursor: pointer;
-  border: 2px solid #1F2937;
+  border: 2px solid #18181B;
 }
 
 .slider::-moz-range-thumb {
@@ -49,7 +49,7 @@ body {
   border-radius: 50%;
   background: #FDE047;
   cursor: pointer;
-  border: 2px solid #1F2937;
+  border: 2px solid #18181B;
 }
 
 /* Marching ants animation */
@@ -72,6 +72,20 @@ body {
 /* Smooth transitions */
 * {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
-  transition-duration: 200ms;
+  transition-duration: 150ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced hover effects */
+button:hover,
+.group:hover .group-hover\:bg-zinc-700,
+.group:hover .group-hover\:text-zinc-400,
+.group:hover .group-hover\:border-zinc-600 {
+  transform: translateY(-1px);
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active {
+  transform: translateY(0);
+  transition-duration: 75ms;
 }

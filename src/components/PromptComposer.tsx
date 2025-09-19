@@ -154,16 +154,16 @@ export const PromptComposer: React.FC = () => {
 
   if (!showPromptPanel) {
     return (
-      <div className="w-8 bg-gray-950 border-r border-gray-800 flex flex-col items-center justify-center">
+      <div className="w-8 bg-zinc-950 border-r border-zinc-800 flex flex-col items-center justify-center">
         <button
           onClick={() => setShowPromptPanel(true)}
-          className="w-6 h-16 bg-gray-800 hover:bg-gray-700 rounded-r-lg border border-l-0 border-gray-700 flex items-center justify-center transition-colors group"
+          className="w-6 h-16 bg-zinc-800 hover:bg-zinc-700 rounded-r-lg border border-l-0 border-zinc-700 flex items-center justify-center transition-colors group"
           title="Show Prompt Panel"
         >
           <div className="flex flex-col space-y-1">
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
           </div>
         </button>
       </div>
@@ -172,9 +172,9 @@ export const PromptComposer: React.FC = () => {
 
   return (
     <>
-    <div className="w-80 lg:w-72 xl:w-80 h-full bg-gray-950 border-r border-gray-800 p-6 flex flex-col space-y-6 overflow-y-auto">
+    <div className="w-80 lg:w-72 xl:w-80 h-full bg-zinc-950 border-r border-zinc-800 p-6 flex flex-col space-y-6 overflow-y-auto">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-300">AI Image Editor</h3>
+        <h3 className="text-sm font-semibold text-zinc-100">AI Image Editor</h3>
         <div className="flex items-center space-x-1">
           <Button
             variant="ghost"
@@ -199,10 +199,10 @@ export const PromptComposer: React.FC = () => {
       {/* File Upload */}
       <div>
         <div>
-          <label className="text-sm font-medium text-gray-300 mb-1 block">
+          <label className="text-sm font-semibold text-zinc-200 mb-1 block">
             Add Images
           </label>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-zinc-400 mb-3">
             Upload or drag images to the canvas
           </p>
           <input
@@ -226,7 +226,7 @@ export const PromptComposer: React.FC = () => {
 
       {/* Prompt Input */}
       <div>
-        <label className="text-sm font-medium text-gray-300 mb-3 block">
+        <label className="text-sm font-semibold text-zinc-200 mb-3 block">
           Describe what you want
         </label>
         <Textarea
@@ -249,7 +249,7 @@ export const PromptComposer: React.FC = () => {
               currentPrompt.length < 50 ? 'bg-yellow-500' : 'bg-green-500'
             )} />
           )}
-          <span className="text-gray-500 group-hover:text-gray-400">
+          <span className="text-zinc-500 group-hover:text-zinc-400">
             {currentPrompt.length < 20 ? 'Add detail for better results' :
              currentPrompt.length < 50 ? 'Good detail level' : 'Excellent prompt detail'}
           </span>
@@ -285,7 +285,7 @@ export const PromptComposer: React.FC = () => {
       <div>
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center text-sm text-gray-400 hover:text-gray-300 transition-colors duration-200"
+          className="flex items-center text-sm text-zinc-400 hover:text-zinc-300 transition-colors duration-200"
         >
           {showAdvanced ? <ChevronDown className="h-4 w-4 mr-1" /> : <ChevronRight className="h-4 w-4 mr-1" />}
           {showAdvanced ? 'Hide' : 'Show'} Advanced Controls
@@ -293,15 +293,15 @@ export const PromptComposer: React.FC = () => {
         
         <button
           onClick={() => setShowClearConfirm(!showClearConfirm)}
-          className="flex items-center text-sm text-gray-400 hover:text-red-400 transition-colors duration-200 mt-2"
+          className="flex items-center text-sm text-zinc-400 hover:text-red-400 transition-colors duration-200 mt-2"
         >
           <RotateCcw className="h-4 w-4 mr-2" />
           Clear Session
         </button>
         
         {showClearConfirm && (
-          <div className="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
-            <p className="text-xs text-gray-300 mb-3">
+          <div className="mt-3 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+            <p className="text-xs text-zinc-300 mb-3">
               Are you sure you want to clear this session? This will remove all uploads, prompts, and canvas content.
             </p>
             <div className="flex space-x-2">
@@ -329,7 +329,7 @@ export const PromptComposer: React.FC = () => {
           <div className="mt-4 space-y-4">
             {/* Temperature */}
             <div>
-              <label className="text-xs text-gray-400 mb-2 block">
+              <label className="text-xs font-medium text-zinc-300 mb-2 block">
                 Creativity ({temperature})
               </label>
               <input
@@ -339,13 +339,13 @@ export const PromptComposer: React.FC = () => {
                 step="0.1"
                 value={temperature}
                 onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
+                className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
               />
             </div>
             
             {/* Seed */}
             <div>
-              <label className="text-xs text-gray-400 mb-2 block">
+              <label className="text-xs font-medium text-zinc-300 mb-2 block">
                 Seed (optional)
               </label>
               <input
@@ -353,7 +353,7 @@ export const PromptComposer: React.FC = () => {
                 value={seed || ''}
                 onChange={(e) => setSeed(e.target.value ? parseInt(e.target.value) : null)}
                 placeholder="Random"
-                className="w-full h-8 px-2 bg-gray-900 border border-gray-700 rounded text-xs text-gray-100"
+                className="w-full h-8 px-2 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-100"
               />
             </div>
           </div>

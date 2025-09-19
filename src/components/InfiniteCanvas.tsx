@@ -318,7 +318,7 @@ export const InfiniteCanvas: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-gray-100 relative overflow-hidden">
+    <div className="w-full h-full bg-zinc-100 relative overflow-hidden">
       <Stage
         ref={stageRef}
         width={window.innerWidth}
@@ -392,13 +392,13 @@ export const InfiniteCanvas: React.FC = () => {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center p-8 bg-white rounded-lg shadow-lg">
             <div className="text-6xl mb-4">🎨</div>
-            <h2 className="text-xl font-medium text-gray-700 mb-2">
+            <h2 className="text-xl font-medium text-zinc-700 mb-2">
               Infinite Canvas Ready
             </h2>
-            <p className="text-gray-500 max-w-md">
+            <p className="text-zinc-500 max-w-md">
               Generate your first image to start exploring the infinite canvas with spatial navigation
             </p>
-            <div className="mt-4 text-sm text-gray-400">
+            <div className="mt-4 text-sm text-zinc-400">
               <p>← → Navigate horizontally between iterations</p>
               <p>↑ ↓ Navigate vertically between edits</p>
               <p>Space: Center on active node</p>

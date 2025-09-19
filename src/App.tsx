@@ -86,7 +86,7 @@ function AppContent() {
   }, [setShowPromptPanel, setShowHistory]);
 
   return (
-    <div className="h-screen bg-gray-900 text-gray-100 flex flex-col font-sans">
+    <div className="h-screen bg-zinc-900 text-zinc-100 flex flex-col font-sans">
       <Header />
       
       <div className="flex-1 flex overflow-hidden" ref={containerRef}>
@@ -102,17 +102,17 @@ function AppContent() {
           <div
             ref={resizeRef}
             className={cn(
-              "w-1 bg-gray-800 hover:bg-gray-700 cursor-col-resize relative flex-shrink-0 group",
-              isResizing && "bg-gray-700"
+              "w-1 bg-zinc-800 hover:bg-zinc-700 cursor-col-resize relative flex-shrink-0 group",
+              isResizing && "bg-zinc-700"
             )}
             onMouseDown={handleMouseDown}
           >
             <div className="absolute inset-y-0 -left-1 -right-1" />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="flex flex-col space-y-1">
-                <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
-                <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
-                <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
+                <div className="w-1 h-1 bg-zinc-500 rounded-full"></div>
+                <div className="w-1 h-1 bg-zinc-500 rounded-full"></div>
+                <div className="w-1 h-1 bg-zinc-500 rounded-full"></div>
               </div>
             </div>
           </div>
