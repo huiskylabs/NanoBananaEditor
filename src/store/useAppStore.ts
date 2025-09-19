@@ -44,6 +44,7 @@ interface AppState {
     temperature?: number;
     seed?: number | null;
     timestamp?: number;
+    outputAssets?: Asset[];
   } | null;
 
   // Actions
@@ -81,6 +82,7 @@ interface AppState {
     temperature?: number;
     seed?: number | null;
     timestamp?: number;
+    outputAssets?: Asset[];
   } | null) => void;
   setShowHistory: (show: boolean) => void;
   

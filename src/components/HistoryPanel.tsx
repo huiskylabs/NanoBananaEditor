@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy } from 'lucide-react';
+import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy, Target } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { ImagePreviewModal } from './ImagePreviewModal';
 import { Stage, Layer, Image as KonvaImage, Group, Rect, Text, Line, Path } from 'react-konva';
@@ -106,7 +106,7 @@ export const HistoryPanel: React.FC = () => {
     const ctx = canvas.getContext('2d')!;
 
     // Set thumbnail size
-    const thumbnailSize = 76;
+    const thumbnailSize = 60;
     canvas.width = thumbnailSize;
     canvas.height = thumbnailSize;
 
@@ -163,10 +163,10 @@ export const HistoryPanel: React.FC = () => {
       return;
     }
 
-    const nodeWidth = 80;
-    const nodeHeight = 80;
-    const verticalSpacing = 100;  // Enough space so children are below parent
-    const horizontalSpacing = 20;  // Very compact horizontal spacing between siblings
+    const nodeWidth = 64;
+    const nodeHeight = 64;
+    const verticalSpacing = 80;  // Enough space so children are below parent
+    const horizontalSpacing = 16;  // Very compact horizontal spacing between siblings
 
     // Build proper tree structure
     interface TreeNode {
@@ -444,14 +444,16 @@ export const HistoryPanel: React.FC = () => {
         modelVersion: gen.modelVersion,
         temperature: gen.parameters.temperature,
         seed: gen.parameters.seed,
-        timestamp: gen.timestamp
+        timestamp: gen.timestamp,
+        outputAssets: gen.outputAssets
       });
     } else if (activeNode.type === 'edit') {
       const edit = activeNode.data as Edit;
       setCurrentNodeDetails({
         prompt: edit.instruction || '',
         nodeType: 'edit',
-        timestamp: edit.timestamp
+        timestamp: edit.timestamp,
+        outputAssets: edit.outputAssets
       });
     }
   }, [activeNodeId, nodes, setCurrentNodeDetails]);
@@ -519,7 +521,8 @@ export const HistoryPanel: React.FC = () => {
         modelVersion: gen.modelVersion,
         temperature: gen.parameters.temperature,
         seed: gen.parameters.seed,
-        timestamp: gen.timestamp
+        timestamp: gen.timestamp,
+        outputAssets: gen.outputAssets
       });
       // Pre-populate prompt with the most recent child's prompt for easy iteration
       const childPrompt = findMostRecentChildPrompt(node.id, 'generation');
@@ -540,7 +543,8 @@ export const HistoryPanel: React.FC = () => {
       setCurrentNodeDetails({
         prompt: edit.instruction || '',
         nodeType: 'edit',
-        timestamp: edit.timestamp
+        timestamp: edit.timestamp,
+        outputAssets: edit.outputAssets
       });
       // Pre-populate prompt with the most recent child's prompt for easy iteration
       const childPrompt = findMostRecentChildPrompt(node.id, 'edit');
@@ -572,29 +576,12 @@ export const HistoryPanel: React.FC = () => {
       style={{ width: `${historyPanelWidth}px` }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <History className="h-5 w-5 text-gray-400" />
-          <h3 className="text-sm font-medium text-gray-300">History & Variants</h3>
+          <h3 className="text-sm font-medium text-gray-300">Generations</h3>
         </div>
-        <div className="flex items-center space-x-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowHistory(!showHistory)}
-            className="h-6 w-6"
-            title="Hide History Panel"
-          >
-            ×
-          </Button>
-        </div>
-      </div>
-
-      {/* Tree View */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-xs font-medium text-gray-400">Tree View</h4>
-          <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-0.5">
             <Button
               variant="ghost"
               size="icon"
@@ -616,9 +603,9 @@ export const HistoryPanel: React.FC = () => {
                 }
 
                 const minX = Math.min(...nodes.map(n => n.x));
-                const maxX = Math.max(...nodes.map(n => n.x + 80)); // node width
+                const maxX = Math.max(...nodes.map(n => n.x + 64)); // node width
                 const minY = Math.min(...nodes.map(n => n.y));
-                const maxY = Math.max(...nodes.map(n => n.y + 80)); // node height
+                const maxY = Math.max(...nodes.map(n => n.y + 64)); // node height
 
                 const treeWidth = maxX - minX;
                 const treeHeight = maxY - minY;
@@ -647,14 +634,47 @@ export const HistoryPanel: React.FC = () => {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => {
+                if (!activeNodeId || activeNodeId === 'blank-root') return;
+
+                const activeNode = nodes.find(n => n.id === activeNodeId);
+                if (!activeNode) return;
+
+                // Center on the active node
+                const centerX = stageSize.width / 2 - (activeNode.x + 32) * treeZoom;
+                const centerY = stageSize.height / 2 - (activeNode.y + 32) * treeZoom;
+
+                setTreePan({ x: centerX, y: centerY });
+              }}
+              className="h-5 w-5"
+              title="Center on Active Node"
+              disabled={!activeNodeId || activeNodeId === 'blank-root'}
+            >
+              <Target className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setTreeZoom(Math.min(2, treeZoom + 0.1))}
               className="h-5 w-5"
               title="Zoom In"
             >
               <ZoomIn className="h-3 w-3" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowHistory(!showHistory)}
+              className="h-6 w-6"
+              title="Hide History Panel"
+            >
+              ×
+            </Button>
           </div>
         </div>
+
+      {/* Tree View */}
+      <div className="flex-1 flex flex-col min-h-0">
         <div
           ref={containerRef}
           className="flex-1 bg-gray-900 rounded-lg border border-gray-700 overflow-hidden relative min-h-0"
@@ -716,9 +736,9 @@ export const HistoryPanel: React.FC = () => {
 
                   // Draw connection line to parent
                   if (parentNode && node.id !== 'blank-root') {
-                    const startX = parentNode.x + 40;
-                    const startY = parentNode.y + 80;
-                    const endX = node.x + 40;
+                    const startX = parentNode.x + 32;
+                    const startY = parentNode.y + 64;
+                    const endX = node.x + 32;
                     const endY = node.y;
                     const midY = startY + (endY - startY) / 2;
 
@@ -765,8 +785,8 @@ export const HistoryPanel: React.FC = () => {
                   >
                     {/* Node background */}
                     <Rect
-                      width={80}
-                      height={80}
+                      width={64}
+                      height={64}
                       fill={node.id === activeNodeId ? '#3b82f6' : '#374151'}
                       stroke={node.id === activeNodeId ? '#60a5fa' : '#6b7280'}
                       strokeWidth={node.id === activeNodeId ? 4 : 1}
@@ -777,8 +797,8 @@ export const HistoryPanel: React.FC = () => {
                     {node.thumbnailElement && (
                       <KonvaImage
                         image={node.thumbnailElement}
-                        width={76}
-                        height={76}
+                        width={60}
+                        height={60}
                         x={2}
                         y={2}
                         cornerRadius={4}
@@ -790,22 +810,22 @@ export const HistoryPanel: React.FC = () => {
                     {node.id === 'blank-root' && (
                       <>
                         <Rect
-                          width={76}
-                          height={76}
+                          width={60}
+                          height={60}
                           x={2}
                           y={2}
                           fill="#1f2937"
                           cornerRadius={4}
                         />
                         <Text
-                          x={40}
-                          y={40}
+                          x={32}
+                          y={32}
                           text="+"
-                          fontSize={32}
+                          fontSize={24}
                           fill="#6b7280"
                           align="center"
-                          offsetX={9}
-                          offsetY={12}
+                          offsetX={7}
+                          offsetY={8}
                         />
                       </>
                     )}
@@ -828,18 +848,15 @@ export const HistoryPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Current Node Details */}
-      <div className="flex-shrink-0" style={{ height: '200px' }}>
+      {/* Current Node Details - Fixed Bottom Panel */}
+      <div className="flex-shrink-0 border-t border-gray-800">
       {currentNodeDetails ? (
-        <div className="pt-4 border-t border-gray-800 h-full">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 h-full overflow-y-auto">
-            <div className="flex items-center justify-between mb-3">
+        <div className="pt-3">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 max-h-40 overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-medium text-gray-300">Canvas Details</h4>
-              <span className="text-xs text-blue-400 capitalize px-2 py-1 bg-blue-500/10 rounded">
-                {currentNodeDetails.nodeType}
-              </span>
             </div>
-          <div className="space-y-3 text-sm">
+          <div className="space-y-2 text-sm">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-400 text-xs">Prompt:</span>
@@ -856,7 +873,24 @@ export const HistoryPanel: React.FC = () => {
                 {currentNodeDetails.prompt}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-xs">
+            {/* Images Section */}
+            {currentNodeDetails.outputAssets && currentNodeDetails.outputAssets.length > 0 && (
+              <div>
+                <span className="text-gray-400 text-xs">
+                  Images ({currentNodeDetails.outputAssets.length}):
+                </span>
+                <div className="text-gray-300 text-sm space-y-1 mt-1">
+                  {currentNodeDetails.outputAssets.map((asset, index) => (
+                    <div key={asset.id} className="text-xs">
+                      {currentNodeDetails.outputAssets.length > 1 ? `Image ${index + 1}: ` : ''}
+                      {asset.width}×{asset.height}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
               {currentNodeDetails.modelVersion && (
                 <div>
                   <span className="text-gray-400">Model:</span>
@@ -886,8 +920,8 @@ export const HistoryPanel: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="pt-4 border-t border-gray-800 h-full">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 h-full flex items-center justify-center">
+        <div className="pt-3">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 h-24 flex items-center justify-center">
             <div className="text-center">
               <h4 className="text-sm font-medium text-gray-400 mb-1">No Canvas Selected</h4>
               <p className="text-xs text-gray-500">Click a canvas in the tree to view details</p>

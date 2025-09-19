@@ -15,7 +15,7 @@ interface UnifiedGenerationRequest {
 }
 
 export const useImageGeneration = () => {
-  const { addGeneration, setIsGenerating, setCanvasImages, setCanvasImagesWithAutoZoom, setCurrentProject, currentProject, selectedGenerationId, selectedEditId, setCurrentPrompt } = useAppStore();
+  const { addGeneration, setIsGenerating, setCanvasImages, setCanvasImagesWithAutoZoom, setCurrentProject, currentProject, selectedGenerationId, selectedEditId, setCurrentPrompt, clearBrushStrokes, selectedAspectRatio } = useAppStore();
 
   const generateMutation = useMutation({
     mutationFn: async (request: UnifiedGenerationRequest) => {
@@ -38,7 +38,8 @@ export const useImageGeneration = () => {
           prompt: request.prompt,
           referenceImages: request.referenceImages,
           temperature: request.temperature,
-          seed: request.seed
+          seed: request.seed,
+          aspectRatio: request.aspectRatio
         };
         const images = await geminiService.generateImage(generationRequest);
         return { images, isEdit: false };
@@ -95,6 +96,10 @@ export const useImageGeneration = () => {
           };
 
           addEdit(edit);
+
+          // Clear brush strokes since they've been applied to the edit
+          clearBrushStrokes();
+
           setCanvasImagesWithAutoZoom(outputAssets);
           selectEdit(edit.id);
           selectGeneration(null);
@@ -189,6 +194,7 @@ export const useImageEditing = () => {
     canvasImages,
     editReferenceImages,
     brushStrokes,
+    clearBrushStrokes,
     selectedGenerationId,
     selectedEditId,
     currentProject,
@@ -375,6 +381,9 @@ export const useImageEditing = () => {
         };
 
         addEdit(edit);
+
+        // Clear brush strokes since they've been applied to the edit
+        clearBrushStrokes();
 
         // Automatically load the edited images in the canvas and select the new edit
         const { selectEdit, selectGeneration } = useAppStore.getState();

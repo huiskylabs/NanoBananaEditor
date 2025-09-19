@@ -30,6 +30,7 @@ export const PromptComposer: React.FC = () => {
     brushStrokes,
     selectedAspectRatio,
     setSelectedAspectRatio,
+    saveBrushStrokesToCurrentCanvas,
   } = useAppStore();
 
   const { generate } = useImageGeneration();
@@ -39,6 +40,11 @@ export const PromptComposer: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleGenerate = () => {
+    // Save current brush strokes to the currently selected node before generating
+    if (selectedGenerationId || selectedEditId) {
+      saveBrushStrokesToCurrentCanvas();
+    }
+
     // Allow empty prompts for random generation
 
     // Unified generation - let AI determine operation type from inputs
@@ -108,7 +114,7 @@ export const PromptComposer: React.FC = () => {
             if (currentImages.length > 0 && !currentProject && !selectedGenerationId && !selectedEditId) {
               const uploadGeneration = {
                 id: generateId(),
-                prompt: 'Uploaded images',
+                prompt: '',
                 parameters: { seed: undefined, temperature: 0.7 },
                 gridLayout: {
                   order: currentImages.map((_, i) => i),

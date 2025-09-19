@@ -120,7 +120,7 @@ function AppContent() {
 
         <div
           className="flex-shrink-0"
-          style={{ width: showHistory ? `${historyPanelWidth}px` : '0' }}
+          style={{ width: showHistory ? `${historyPanelWidth}px` : '32px' }}
         >
           <HistoryPanel />
         </div>

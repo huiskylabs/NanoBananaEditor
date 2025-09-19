@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { AspectRatio } from '../types';
 
 // Note: In production, this should be handled via a backend proxy
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'demo-key';
@@ -10,6 +11,7 @@ export interface GenerationRequest {
   referenceImages?: string[]; // base64 array
   temperature?: number;
   seed?: number;
+  aspectRatio?: AspectRatio;
 }
 
 export interface EditRequest {
@@ -69,6 +71,9 @@ export class GeminiService {
       await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
 
       console.log('🎨 Mock generating image for prompt:', request.prompt);
+      if (request.aspectRatio) {
+        console.log('🖼️ Mock aspect ratio:', request.aspectRatio.label);
+      }
 
       // Return a random mock image
       const mockImage = await this.getRandomMockImage();
@@ -76,7 +81,8 @@ export class GeminiService {
     }
 
     try {
-      const contents: any[] = [{ text: request.prompt }];
+      const enhancedPrompt = this.buildGenerationPrompt(request);
+      const contents: any[] = [{ text: enhancedPrompt }];
 
       // Add reference images if provided
       if (request.referenceImages && request.referenceImages.length > 0) {
@@ -212,8 +218,20 @@ Only segment the specific object or region requested. The mask should be a binar
     }
   }
 
+  private buildGenerationPrompt(request: GenerationRequest): string {
+    let prompt = request.prompt;
+
+    // Add aspect ratio specification if provided
+    if (request.aspectRatio) {
+      const { width, height, label } = request.aspectRatio;
+      prompt += `\n\nIMPORTANT: Generate the image with aspect ratio ${label} (${width}×${height} pixels). Ensure the composition works well within this specific dimension.`;
+    }
+
+    return prompt;
+  }
+
   private buildEditPrompt(request: EditRequest): string {
-    const maskInstruction = request.maskImage 
+    const maskInstruction = request.maskImage
       ? "\n\nIMPORTANT: Apply changes ONLY where the mask image shows white pixels (value 255). Leave all other areas completely unchanged. Respect the mask boundaries precisely and maintain seamless blending at the edges."
       : "";
 
