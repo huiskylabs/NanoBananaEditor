@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Stage, Layer, Image as KonvaImage, Group, Rect, Text } from 'react-konva';
 import { cn } from '../utils/cn';
 import { Generation, Edit } from '../types';
+import { Sparkles } from 'lucide-react';
 
 interface CanvasNode {
   id: string;
@@ -390,8 +391,12 @@ export const InfiniteCanvas: React.FC = () => {
       {/* Navigation indicator */}
       {nodes.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center p-8 bg-white rounded-lg shadow-lg">
-            <div className="text-6xl mb-4">🎨</div>
+          <div className="text-center p-8 bg-white rounded-xl shadow-xl border border-zinc-200">
+            <div className="mb-6 flex justify-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-zinc-100 to-zinc-200 rounded-2xl border border-zinc-300 flex items-center justify-center">
+                <Sparkles className="h-10 w-10 text-yellow-600" />
+              </div>
+            </div>
             <h2 className="text-xl font-medium text-zinc-700 mb-2">
               Infinite Canvas Ready
             </h2>

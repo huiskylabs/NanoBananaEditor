@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from './ui/Button';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Zap } from 'lucide-react';
 import { InfoModal } from './InfoModal';
 
 export const Header: React.FC = () => {
@@ -10,13 +10,17 @@ export const Header: React.FC = () => {
     <>
       <header className="h-16 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-6">
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="text-2xl">🍌</div>
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+                <Zap className="h-5 w-5 text-zinc-900" />
+              </div>
+            </div>
             <h1 className="text-xl font-semibold text-zinc-100 hidden md:block">
-              Nano Banana AI Image Editor
+              AI Image Editor
             </h1>
             <h1 className="text-xl font-semibold text-zinc-100 md:hidden">
-              NB Editor
+              AI Editor
             </h1>
           </div>
           <div className="text-xs text-zinc-500 bg-zinc-800 px-2 py-1 rounded">

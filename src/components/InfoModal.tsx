@@ -16,7 +16,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ open, onOpenChange }) => {
         <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-zinc-900 border border-zinc-700 rounded-lg p-6 w-full max-w-4xl z-50">
           <div className="flex items-center justify-between mb-4">
             <Dialog.Title className="text-lg font-semibold text-zinc-100">
-              About Nano Banana AI Image Editor
+              About AI Image Editor
             </Dialog.Title>
             <Dialog.Close asChild>
               <Button variant="ghost" size="icon" className="h-6 w-6">

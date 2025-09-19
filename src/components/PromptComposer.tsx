@@ -232,7 +232,7 @@ export const PromptComposer: React.FC = () => {
         <Textarea
           value={currentPrompt}
           onChange={(e) => setCurrentPrompt(e.target.value)}
-          placeholder="A serene mountain landscape, make the sky more dramatic, combine these elements... or click Generate directly to get a random image"
+          placeholder="Describe what you want to create or edit... Leave empty and click Generate for a random image"
           className="min-h-[120px] resize-none"
         />
         

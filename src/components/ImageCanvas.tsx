@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser, Brush } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser, Brush, Sparkles } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { blobToBase64 } from '../utils/imageUtils';
 import { generateId } from '../utils/imageUtils';
@@ -373,14 +373,18 @@ export const ImageCanvas: React.FC = () => {
         {canvasImages.length === 0 && !isGenerating && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <div className="text-6xl mb-4">🍌</div>
+              <div className="mb-6 flex justify-center">
+                <div className="w-24 h-24 bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-2xl border border-zinc-700 flex items-center justify-center">
+                  <Sparkles className="h-12 w-12 text-yellow-400" />
+                </div>
+              </div>
               <h2 className="text-xl font-medium text-zinc-300 mb-2">
-                Welcome to Nano Banana Framework
+                AI Image Editor
               </h2>
               <p className="text-zinc-500 max-w-md">
                 {selectedTool === 'generate'
-                  ? 'Start by describing what you want to create in the prompt box, or drag & drop images here'
-                  : 'Upload an image to begin editing, or drag & drop images here'
+                  ? 'Start by describing what you want to create in the prompt panel, or drag & drop images here to begin editing'
+                  : 'Upload an image to begin editing, or drag & drop images here to get started'
                 }
               </p>
             </div>

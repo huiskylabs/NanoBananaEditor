@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy, Target } from 'lucide-react';
+import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy, Target, GitBranch } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { ImagePreviewModal } from './ImagePreviewModal';
 import { Stage, Layer, Image as KonvaImage, Group, Rect, Text, Line, Path } from 'react-konva';
@@ -682,7 +682,9 @@ export const HistoryPanel: React.FC = () => {
           {nodes.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
-                <div className="text-2xl mb-2">🌳</div>
+                <div className="w-12 h-12 bg-zinc-800 rounded-lg border border-zinc-700 flex items-center justify-center mb-3 mx-auto">
+                  <GitBranch className="h-6 w-6 text-zinc-400" />
+                </div>
                 <p className="text-xs text-zinc-500">No generations yet</p>
               </div>
             </div>
@@ -839,7 +841,9 @@ export const HistoryPanel: React.FC = () => {
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
-                <div className="text-2xl mb-2">🌳</div>
+                <div className="w-12 h-12 bg-zinc-800 rounded-lg border border-zinc-700 flex items-center justify-center mb-3 mx-auto">
+                  <GitBranch className="h-6 w-6 text-zinc-400" />
+                </div>
                 <p className="text-xs text-zinc-500">Loading tree view...</p>
               </div>
             </div>
