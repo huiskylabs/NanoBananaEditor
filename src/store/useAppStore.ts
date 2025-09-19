@@ -12,10 +12,6 @@ interface AppState {
   canvasZoom: number;
   canvasPan: { x: number; y: number };
   
-  // Upload state
-  uploadedImages: string[];
-  editReferenceImages: string[];
-  
   // Brush strokes for painting masks
   brushStrokes: BrushStroke[];
   brushSize: number;
@@ -52,21 +48,14 @@ interface AppState {
   // Actions
   setCurrentProject: (project: Project | null) => void;
   setCanvasImages: (images: Asset[]) => void;
+  setCanvasImagesWithAutoZoom: (images: Asset[]) => void;
   addCanvasImage: (image: Asset) => void;
   removeCanvasImage: (index: number) => void;
   reorderCanvasImages: (fromIndex: number, toIndex: number) => void;
   setCanvasGridLayout: (layout: GridLayout) => void;
   setCanvasZoom: (zoom: number) => void;
   setCanvasPan: (pan: { x: number; y: number }) => void;
-  
-  addUploadedImage: (url: string) => void;
-  removeUploadedImage: (index: number) => void;
-  clearUploadedImages: () => void;
-  
-  addEditReferenceImage: (url: string) => void;
-  removeEditReferenceImage: (index: number) => void;
-  clearEditReferenceImages: () => void;
-  
+
   addBrushStroke: (stroke: BrushStroke) => void;
   clearBrushStrokes: () => void;
   setBrushSize: (size: number) => void;
@@ -97,6 +86,10 @@ interface AppState {
   setHistoryPanelWidth: (width: number) => void;
 
   setSelectedTool: (tool: 'generate' | 'edit' | 'mask') => void;
+
+  // Brush stroke management per canvas
+  saveBrushStrokesToCurrentCanvas: () => void;
+  loadBrushStrokesFromCanvas: (canvasId: string, canvasType: 'generation' | 'edit') => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -108,10 +101,7 @@ export const useAppStore = create<AppState>()(
       canvasGridLayout: { order: [], columns: 1 },
       canvasZoom: 1,
       canvasPan: { x: 0, y: 0 },
-      
-      uploadedImages: [],
-      editReferenceImages: [],
-      
+
       brushStrokes: [],
       brushSize: 20,
       showMasks: true,
@@ -139,6 +129,21 @@ export const useAppStore = create<AppState>()(
         return {
           canvasImages: images,
           canvasGridLayout: { order, columns }
+        };
+      }),
+      setCanvasImagesWithAutoZoom: (images) => set((state) => {
+        const order = images.map((_, index) => index);
+        const columns = Math.ceil(Math.sqrt(images.length));
+
+        // Auto-zoom logic for new generated content
+        const isMobile = window.innerWidth < 768;
+        const autoZoom = isMobile ? 0.5 : 1.0;
+
+        return {
+          canvasImages: images,
+          canvasGridLayout: { order, columns },
+          canvasZoom: autoZoom,
+          canvasPan: { x: 0, y: 0 }
         };
       }),
       addCanvasImage: (image) => set((state) => {
@@ -170,23 +175,7 @@ export const useAppStore = create<AppState>()(
       setCanvasGridLayout: (layout) => set({ canvasGridLayout: layout }),
       setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
       setCanvasPan: (pan) => set({ canvasPan: pan }),
-      
-      addUploadedImage: (url) => set((state) => ({ 
-        uploadedImages: [...state.uploadedImages, url] 
-      })),
-      removeUploadedImage: (index) => set((state) => ({ 
-        uploadedImages: state.uploadedImages.filter((_, i) => i !== index) 
-      })),
-      clearUploadedImages: () => set({ uploadedImages: [] }),
-      
-      addEditReferenceImage: (url) => set((state) => ({ 
-        editReferenceImages: [...state.editReferenceImages, url] 
-      })),
-      removeEditReferenceImage: (index) => set((state) => ({ 
-        editReferenceImages: state.editReferenceImages.filter((_, i) => i !== index) 
-      })),
-      clearEditReferenceImages: () => set({ editReferenceImages: [] }),
-      
+
       addBrushStroke: (stroke) => set((state) => ({ 
         brushStrokes: [...state.brushStrokes, stroke] 
       })),
@@ -307,7 +296,6 @@ export const useAppStore = create<AppState>()(
         canvasImages: [],
         canvasGridLayout: { order: [], columns: 1 },
         brushStrokes: [],
-        editReferenceImages: [],
         currentPrompt: ''
       }),
       setShowHistory: (show) => set({ showHistory: show }),
@@ -317,6 +305,67 @@ export const useAppStore = create<AppState>()(
 
       setCurrentNodeDetails: (details) => set({ currentNodeDetails: details }),
       setSelectedTool: (tool) => set({ selectedTool: tool }),
+
+      // Brush stroke management per canvas
+      saveBrushStrokesToCurrentCanvas: () => {
+        const state = get();
+        if (!state.currentProject) return;
+
+        const currentBrushStrokes = [...state.brushStrokes];
+
+        if (state.selectedGenerationId) {
+          // Save to the selected generation
+          const generationIndex = state.currentProject.generations.findIndex(g => g.id === state.selectedGenerationId);
+          if (generationIndex !== -1) {
+            const updatedGenerations = [...state.currentProject.generations];
+            updatedGenerations[generationIndex] = {
+              ...updatedGenerations[generationIndex],
+              brushStrokes: currentBrushStrokes
+            };
+            set({
+              currentProject: {
+                ...state.currentProject,
+                generations: updatedGenerations,
+                updatedAt: Date.now()
+              }
+            });
+          }
+        } else if (state.selectedEditId) {
+          // Save to the selected edit
+          const editIndex = state.currentProject.edits.findIndex(e => e.id === state.selectedEditId);
+          if (editIndex !== -1) {
+            const updatedEdits = [...state.currentProject.edits];
+            updatedEdits[editIndex] = {
+              ...updatedEdits[editIndex],
+              brushStrokes: currentBrushStrokes
+            };
+            set({
+              currentProject: {
+                ...state.currentProject,
+                edits: updatedEdits,
+                updatedAt: Date.now()
+              }
+            });
+          }
+        }
+      },
+
+      loadBrushStrokesFromCanvas: (canvasId: string, canvasType: 'generation' | 'edit') => {
+        const state = get();
+        if (!state.currentProject) return;
+
+        let canvasBrushStrokes: BrushStroke[] = [];
+
+        if (canvasType === 'generation') {
+          const generation = state.currentProject.generations.find(g => g.id === canvasId);
+          canvasBrushStrokes = generation?.brushStrokes || [];
+        } else {
+          const edit = state.currentProject.edits.find(e => e.id === canvasId);
+          canvasBrushStrokes = edit?.brushStrokes || [];
+        }
+
+        set({ brushStrokes: canvasBrushStrokes });
+      },
     }),
     { name: 'nano-banana-store' }
   )

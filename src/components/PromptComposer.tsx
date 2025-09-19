@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Textarea } from './ui/Textarea';
 import { Button } from './ui/Button';
 import { useAppStore } from '../store/useAppStore';
-import { useImageGeneration, useImageEditing } from '../hooks/useImageGeneration';
+import { useImageGeneration } from '../hooks/useImageGeneration';
 import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { blobToBase64, generateId } from '../utils/imageUtils';
 import { PromptHints } from './PromptHints';
@@ -17,50 +17,42 @@ export const PromptComposer: React.FC = () => {
     seed,
     setSeed,
     isGenerating,
-    uploadedImages,
-    addUploadedImage,
-    removeUploadedImage,
-    clearUploadedImages,
-    editReferenceImages,
-    addEditReferenceImage,
-    removeEditReferenceImage,
-    clearEditReferenceImages,
     canvasImages,
     addCanvasImage,
     showPromptPanel,
     setShowPromptPanel,
     clearBrushStrokes,
+    removeCanvasImage,
     currentProject,
     selectedGenerationId,
     selectedEditId,
+    brushStrokes,
   } = useAppStore();
 
   const { generate } = useImageGeneration();
-  const { edit } = useImageEditing();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showHintsModal, setShowHintsModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleGenerate = () => {
-    if (!currentPrompt.trim()) return;
+    // Allow empty prompts for random generation
 
-    // If there are canvas images, it's an edit operation
-    if (canvasImages.length > 0) {
-      edit(currentPrompt);
-    } else {
-      // Otherwise, it's a generation
-      const referenceImages = uploadedImages
-        .filter(img => img.includes('base64,'))
-        .map(img => img.split('base64,')[1]);
+    // Unified generation - let AI determine operation type from inputs
+    const allImages = canvasImages.map(img => {
+      const base64 = img.url.includes('base64,')
+        ? img.url.split('base64,')[1]
+        : img.url;
+      return base64;
+    });
 
-      generate({
-        prompt: currentPrompt,
-        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-        temperature,
-        seed: seed || undefined
-      });
-    }
+    generate({
+      prompt: currentPrompt,
+      referenceImages: allImages.length > 0 ? allImages : undefined,
+      temperature,
+      seed: seed || undefined,
+      brushStrokes: brushStrokes.length > 0 ? brushStrokes : undefined
+    });
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,7 +74,6 @@ export const PromptComposer: React.FC = () => {
             checksum: base64.slice(0, 32)
           };
           addCanvasImage(asset);
-          addUploadedImage(dataUrl);
 
           // Update existing node with expanded canvas
           setTimeout(() => {
@@ -105,7 +96,6 @@ export const PromptComposer: React.FC = () => {
             checksum: base64.slice(0, 32)
           };
           addCanvasImage(asset);
-          addUploadedImage(dataUrl);
 
           // Create a generation node for uploaded images automatically
           // This will trigger after all images are uploaded to group them properly
@@ -143,8 +133,6 @@ export const PromptComposer: React.FC = () => {
 
   const handleClearSession = () => {
     setCurrentPrompt('');
-    clearUploadedImages();
-    clearEditReferenceImages();
     clearBrushStrokes();
     // Canvas images are cleared via clearSelection in the store
     setSeed(null);
@@ -202,10 +190,10 @@ export const PromptComposer: React.FC = () => {
       <div>
         <div>
           <label className="text-sm font-medium text-gray-300 mb-1 block">
-            {canvasImages.length > 0 ? 'Style References' : 'Upload Images'}
+            Add Images
           </label>
           <p className="text-xs text-gray-500 mb-3">
-            {canvasImages.length > 0 ? 'Optional style references for editing (up to 2)' : 'Upload images to edit or add reference images'}
+            Upload or drag images to the canvas
           </p>
           <input
             ref={fileInputRef}
@@ -218,71 +206,23 @@ export const PromptComposer: React.FC = () => {
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             className="w-full"
-            disabled={canvasImages.length > 0 && editReferenceImages.length >= 2}
           >
             <Upload className="h-4 w-4 mr-2" />
             Upload
           </Button>
 
-          {/* Show uploaded images preview */}
-          {((uploadedImages.length > 0) || (editReferenceImages.length > 0)) && (
-            <div className="mt-3 space-y-2">
-              {/* Show main uploaded images */}
-              {uploadedImages.map((image, index) => (
-                <div key={`upload-${index}`} className="relative">
-                  <img
-                    src={image}
-                    alt={`Image ${index + 1}`}
-                    className="w-full h-20 object-cover rounded-lg border border-gray-700"
-                  />
-                  <button
-                    onClick={() => removeUploadedImage(index)}
-                    className="absolute top-1 right-1 bg-gray-900/80 text-gray-400 hover:text-gray-200 rounded-full p-1 transition-colors"
-                  >
-                    ×
-                  </button>
-                  <div className="absolute bottom-1 left-1 bg-gray-900/80 text-xs px-2 py-1 rounded text-gray-300">
-                    Main
-                  </div>
-                </div>
-              ))}
-              {/* Show edit reference images */}
-              {editReferenceImages.map((image, index) => (
-                <div key={`ref-${index}`} className="relative">
-                  <img
-                    src={image}
-                    alt={`Reference ${index + 1}`}
-                    className="w-full h-20 object-cover rounded-lg border border-gray-700"
-                  />
-                  <button
-                    onClick={() => removeEditReferenceImage(index)}
-                    className="absolute top-1 right-1 bg-gray-900/80 text-gray-400 hover:text-gray-200 rounded-full p-1 transition-colors"
-                  >
-                    ×
-                  </button>
-                  <div className="absolute bottom-1 left-1 bg-gray-900/80 text-xs px-2 py-1 rounded text-gray-300">
-                    Ref {index + 1}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
       {/* Prompt Input */}
       <div>
         <label className="text-sm font-medium text-gray-300 mb-3 block">
-          {canvasImages.length > 0 ? 'Describe your changes' : 'Describe what you want to create'}
+          Describe what you want
         </label>
         <Textarea
           value={currentPrompt}
           onChange={(e) => setCurrentPrompt(e.target.value)}
-          placeholder={
-            canvasImages.length > 0
-              ? 'Make the sky more dramatic, add storm clouds...'
-              : 'A serene mountain landscape at sunset with a lake reflecting the golden sky...'
-          }
+          placeholder="A serene mountain landscape, make the sky more dramatic, combine these elements... or click Generate directly to get a random image"
           className="min-h-[120px] resize-none"
         />
         
@@ -310,7 +250,7 @@ export const PromptComposer: React.FC = () => {
       {/* Generate Button */}
       <Button
         onClick={handleGenerate}
-        disabled={isGenerating || !currentPrompt.trim()}
+        disabled={isGenerating}
         className="w-full h-14 text-base font-medium"
       >
         {isGenerating ? (
@@ -321,7 +261,7 @@ export const PromptComposer: React.FC = () => {
         ) : (
           <>
             <Wand2 className="h-4 w-4 mr-2" />
-            {canvasImages.length > 0 ? 'Apply Edit' : 'Generate'}
+            Generate
           </>
         )}
       </Button>

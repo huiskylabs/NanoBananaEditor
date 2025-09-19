@@ -22,7 +22,10 @@ export const HistoryPanel: React.FC = () => {
     selectedTool,
     historyPanelWidth,
     setCurrentNodeDetails,
-    currentNodeDetails
+    currentNodeDetails,
+    setCurrentPrompt,
+    saveBrushStrokesToCurrentCanvas,
+    loadBrushStrokesFromCanvas
   } = useAppStore();
 
 
@@ -422,23 +425,19 @@ export const HistoryPanel: React.FC = () => {
     }
   }, [selectedGenerationId, selectedEditId]);
 
-
-  // Handle tree node click
-  const handleTreeNodeClick = (node: typeof nodes[0]) => {
-    setActiveNodeId(node.id);
-
-    if (node.id === 'blank-root') {
-      // Click on blank root - clear selection and return to blank state
-      clearSelection();
+  // Update node details when active node changes
+  useEffect(() => {
+    if (activeNodeId === 'blank-root' || !activeNodeId) {
       setCurrentNodeDetails(null);
-    } else if (node.type === 'generation') {
-      selectGeneration(node.id);
-      selectEdit(null);
-      const gen = node.data as Generation;
-      if (gen.outputAssets.length > 0) {
-        setCanvasImages(gen.outputAssets);
-      }
-      // Set current node details for display (don't overwrite user input)
+      return;
+    }
+
+    // Find the active node in our current nodes
+    const activeNode = nodes.find(n => n.id === activeNodeId);
+    if (!activeNode) return;
+
+    if (activeNode.type === 'generation') {
+      const gen = activeNode.data as Generation;
       setCurrentNodeDetails({
         prompt: gen.prompt || '',
         nodeType: 'generation',
@@ -447,6 +446,84 @@ export const HistoryPanel: React.FC = () => {
         seed: gen.parameters.seed,
         timestamp: gen.timestamp
       });
+    } else if (activeNode.type === 'edit') {
+      const edit = activeNode.data as Edit;
+      setCurrentNodeDetails({
+        prompt: edit.instruction || '',
+        nodeType: 'edit',
+        timestamp: edit.timestamp
+      });
+    }
+  }, [activeNodeId, nodes, setCurrentNodeDetails]);
+
+  // Find the most recent child's prompt to pre-populate for easy iteration
+  const findMostRecentChildPrompt = (parentId: string, parentType: 'generation' | 'edit'): string | null => {
+    if (!currentProject) return null;
+
+    let children: (Generation | Edit)[] = [];
+
+    if (parentType === 'generation') {
+      // Find generations and edits that have this generation as parent
+      const childGenerations = currentProject.generations.filter(g => g.parentGenerationId === parentId);
+      const childEdits = currentProject.edits.filter(e => e.parentGenerationId === parentId);
+      children = [...childGenerations, ...childEdits];
+    } else {
+      // Find edits that have this edit as parent
+      const childEdits = currentProject.edits.filter(e => e.parentEditId === parentId);
+      children = childEdits;
+    }
+
+    if (children.length === 0) return null;
+
+    // Sort by timestamp to get the most recent
+    children.sort((a, b) => b.timestamp - a.timestamp);
+    const mostRecentChild = children[0];
+
+    // Return the prompt/instruction from the most recent child
+    if ('prompt' in mostRecentChild) {
+      return mostRecentChild.prompt || null;
+    } else {
+      return mostRecentChild.instruction || null;
+    }
+  };
+
+  // Handle tree node click
+  const handleTreeNodeClick = (node: typeof nodes[0]) => {
+    // Save current canvas's brush strokes before switching
+    if (selectedGenerationId || selectedEditId) {
+      saveBrushStrokesToCurrentCanvas();
+    }
+
+    setActiveNodeId(node.id);
+
+    if (node.id === 'blank-root') {
+      // Click on blank root - clear selection and return to blank state
+      clearSelection();
+      setCurrentNodeDetails(null);
+      setCurrentPrompt(''); // Clear prompt when going to blank state
+    } else if (node.type === 'generation') {
+      selectGeneration(node.id);
+      selectEdit(null);
+      const gen = node.data as Generation;
+      if (gen.outputAssets.length > 0) {
+        setCanvasImages(gen.outputAssets);
+      }
+
+      // Load brush strokes for this canvas
+      loadBrushStrokesFromCanvas(node.id, 'generation');
+
+      // Set current canvas details for display (don't overwrite user input)
+      setCurrentNodeDetails({
+        prompt: gen.prompt || '',
+        nodeType: 'generation',
+        modelVersion: gen.modelVersion,
+        temperature: gen.parameters.temperature,
+        seed: gen.parameters.seed,
+        timestamp: gen.timestamp
+      });
+      // Pre-populate prompt with the most recent child's prompt for easy iteration
+      const childPrompt = findMostRecentChildPrompt(node.id, 'generation');
+      setCurrentPrompt(childPrompt || gen.prompt || '');
 
     } else {
       selectEdit(node.id);
@@ -455,12 +532,19 @@ export const HistoryPanel: React.FC = () => {
       if (edit.outputAssets.length > 0) {
         setCanvasImages(edit.outputAssets);
       }
-      // Set current node details for display (don't overwrite user input)
+
+      // Load brush strokes for this canvas
+      loadBrushStrokesFromCanvas(node.id, 'edit');
+
+      // Set current canvas details for display (don't overwrite user input)
       setCurrentNodeDetails({
         prompt: edit.instruction || '',
         nodeType: 'edit',
         timestamp: edit.timestamp
       });
+      // Pre-populate prompt with the most recent child's prompt for easy iteration
+      const childPrompt = findMostRecentChildPrompt(node.id, 'edit');
+      setCurrentPrompt(childPrompt || edit.instruction || '');
     }
   };
 
@@ -726,23 +810,6 @@ export const HistoryPanel: React.FC = () => {
                       </>
                     )}
 
-                    {/* Node type label */}
-                    <Rect
-                      x={2}
-                      y={2}
-                      width={node.type === 'generation' ? 20 : 16}
-                      height={12}
-                      fill={node.type === 'generation' ? '#10b981' : '#8b5cf6'}
-                      cornerRadius={2}
-                    />
-                    <Text
-                      x={node.type === 'generation' ? 10 : 8}
-                      y={8}
-                      text={node.type === 'generation' ? 'G' : 'E'}
-                      fontSize={8}
-                      fill="white"
-                      align="center"
-                    />
 
                   </Group>
                 ))}
@@ -764,13 +831,14 @@ export const HistoryPanel: React.FC = () => {
       {/* Current Node Details */}
       <div className="flex-shrink-0" style={{ height: '200px' }}>
       {currentNodeDetails ? (
-        <div className="pt-4 border-t border-gray-800 h-full overflow-y-auto">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-medium text-gray-300">Node Details</h4>
-            <span className="text-xs text-blue-400 capitalize px-2 py-1 bg-blue-500/10 rounded">
-              {currentNodeDetails.nodeType}
-            </span>
-          </div>
+        <div className="pt-4 border-t border-gray-800 h-full">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 h-full overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-gray-300">Canvas Details</h4>
+              <span className="text-xs text-blue-400 capitalize px-2 py-1 bg-blue-500/10 rounded">
+                {currentNodeDetails.nodeType}
+              </span>
+            </div>
           <div className="space-y-3 text-sm">
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -815,12 +883,15 @@ export const HistoryPanel: React.FC = () => {
               )}
             </div>
           </div>
+          </div>
         </div>
       ) : (
-        <div className="pt-4 border-t border-gray-800 h-full flex items-center justify-center">
-          <div className="text-center">
-            <h4 className="text-sm font-medium text-gray-400 mb-1">No Node Selected</h4>
-            <p className="text-xs text-gray-500">Click a node in the tree to view details</p>
+        <div className="pt-4 border-t border-gray-800 h-full">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 h-full flex items-center justify-center">
+            <div className="text-center">
+              <h4 className="text-sm font-medium text-gray-400 mb-1">No Canvas Selected</h4>
+              <p className="text-xs text-gray-500">Click a canvas in the tree to view details</p>
+            </div>
           </div>
         </div>
       )}

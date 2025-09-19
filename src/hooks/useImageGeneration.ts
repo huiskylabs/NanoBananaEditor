@@ -2,22 +2,53 @@ import { useMutation } from '@tanstack/react-query';
 import { geminiService, GenerationRequest, EditRequest } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
 import { generateId } from '../utils/imageUtils';
-import { Generation, Edit, Asset } from '../types';
+import { Generation, Edit, Asset, BrushStroke } from '../types';
+
+// Unified request interface for the new workflow
+interface UnifiedGenerationRequest {
+  prompt: string;
+  referenceImages?: string[];
+  temperature?: number;
+  seed?: number;
+  brushStrokes?: BrushStroke[];
+}
 
 export const useImageGeneration = () => {
-  const { addGeneration, setIsGenerating, setCanvasImages, setCurrentProject, currentProject, selectedGenerationId, selectedEditId } = useAppStore();
+  const { addGeneration, setIsGenerating, setCanvasImages, setCanvasImagesWithAutoZoom, setCurrentProject, currentProject, selectedGenerationId, selectedEditId, setCurrentPrompt } = useAppStore();
 
   const generateMutation = useMutation({
-    mutationFn: async (request: GenerationRequest) => {
-      const images = await geminiService.generateImage(request);
-      return images;
+    mutationFn: async (request: UnifiedGenerationRequest) => {
+      // Determine if this should be a generation or edit based on inputs
+      if (request.brushStrokes && request.brushStrokes.length > 0 && request.referenceImages && request.referenceImages.length > 0) {
+        // Has brush strokes and reference images - treat as edit
+        const editRequest: EditRequest = {
+          instruction: request.prompt,
+          originalImage: request.referenceImages[0], // First image as primary
+          referenceImages: request.referenceImages.slice(1), // Rest as references
+          maskImage: undefined, // Will be generated from brush strokes
+          temperature: request.temperature,
+          seed: request.seed
+        };
+        const images = await geminiService.editImage(editRequest);
+        return { images, isEdit: true, brushStrokes: request.brushStrokes };
+      } else {
+        // No brush strokes or no reference images - treat as generation
+        const generationRequest: GenerationRequest = {
+          prompt: request.prompt,
+          referenceImages: request.referenceImages,
+          temperature: request.temperature,
+          seed: request.seed
+        };
+        const images = await geminiService.generateImage(generationRequest);
+        return { images, isEdit: false };
+      }
     },
     onMutate: () => {
       setIsGenerating(true);
     },
-    onSuccess: (images, request) => {
-      if (images.length > 0) {
-        const outputAssets: Asset[] = images.map((base64, index) => ({
+    onSuccess: (result, request) => {
+      if (result.images.length > 0) {
+        const outputAssets: Asset[] = result.images.map((base64, index) => ({
           id: generateId(),
           type: 'output',
           url: `data:image/png;base64,${base64}`,
@@ -27,77 +58,111 @@ export const useImageGeneration = () => {
           checksum: base64.slice(0, 32) // Simple checksum
         }));
 
-        // Determine the correct parent for the new generation
-        let parentId: string | undefined = undefined;
-        let isIteration = false;
+        if (result.isEdit) {
+          // Handle edit case - create an Edit node
+          const { addEdit, selectEdit, selectGeneration } = useAppStore.getState();
 
-        console.log('Generation logic:', { selectedGenerationId, selectedEditId });
+          // Determine parent for edit
+          let parentGenerationId: string | undefined;
+          let parentEditId: string | undefined;
 
-        if (selectedGenerationId) {
-          // If a generation is selected, new generation should be a child of that generation
-          parentId = selectedGenerationId;
-          isIteration = true;
-          console.log('Using selectedGenerationId as parent:', parentId);
-        } else if (selectedEditId) {
-          // If an edit is selected, new generation should be sibling of that edit
-          // (both children of the edit's parent generation)
-          const selectedEdit = currentProject?.edits.find(e => e.id === selectedEditId);
-          if (selectedEdit) {
-            parentId = selectedEdit.parentGenerationId; // Parent generation of the edit
-            isIteration = true;
-            console.log('Using edit parent as parent:', parentId, 'for edit:', selectedEditId);
+          if (selectedEditId) {
+            parentEditId = selectedEditId;
+          } else if (selectedGenerationId) {
+            parentGenerationId = selectedGenerationId;
+          } else {
+            // Fallback to most recent generation
+            const mostRecentGeneration = currentProject?.generations[currentProject.generations.length - 1];
+            if (mostRecentGeneration) {
+              parentGenerationId = mostRecentGeneration.id;
+            }
           }
-        }
 
-        // If no selection, it's a root
-        if (!parentId) {
-          isIteration = false;
-          console.log('No parent, creating root generation');
-        }
-
-        const generation: Generation = {
-          id: generateId(),
-          prompt: request.prompt,
-          parameters: {
-            seed: request.seed,
-            temperature: request.temperature
-          },
-          gridLayout: {
-            order: [0], // Single image for now
-            columns: 1
-          },
-          sourceAssets: request.referenceImage ? [{
+          const edit: Edit = {
             id: generateId(),
-            type: 'original',
-            url: `data:image/png;base64,${request.referenceImages[0]}`,
-            mime: 'image/png',
-            width: 1024,
-            height: 1024,
-            checksum: request.referenceImages[0].slice(0, 32)
-          }] : request.referenceImages ? request.referenceImages.map((img, index) => ({
+            parentGenerationId,
+            parentEditId,
+            maskAssetId: result.brushStrokes && result.brushStrokes.length > 0 ? generateId() : undefined,
+            instruction: request.prompt,
+            outputAssets,
+            gridLayout: {
+              order: outputAssets.map((_, i) => i),
+              columns: Math.ceil(Math.sqrt(outputAssets.length))
+            },
+            timestamp: Date.now(),
+            brushStrokes: result.brushStrokes
+          };
+
+          addEdit(edit);
+          setCanvasImagesWithAutoZoom(outputAssets);
+          selectEdit(edit.id);
+          selectGeneration(null);
+
+          // Clear prompt since we've completed the operation and moved to the result
+          setCurrentPrompt('');
+        } else {
+          // Handle generation case - create a Generation node
+          let parentId: string | undefined = undefined;
+          let isIteration = false;
+
+          console.log('Generation logic:', { selectedGenerationId, selectedEditId });
+
+          if (selectedGenerationId) {
+            parentId = selectedGenerationId;
+            isIteration = true;
+            console.log('Using selectedGenerationId as parent:', parentId);
+          } else if (selectedEditId) {
+            const selectedEdit = currentProject?.edits.find(e => e.id === selectedEditId);
+            if (selectedEdit) {
+              parentId = selectedEdit.parentGenerationId;
+              isIteration = true;
+              console.log('Using edit parent as parent:', parentId, 'for edit:', selectedEditId);
+            }
+          }
+
+          if (!parentId) {
+            isIteration = false;
+            console.log('No parent, creating root generation');
+          }
+
+          const generation: Generation = {
             id: generateId(),
-            type: 'original' as const,
-            url: `data:image/png;base64,${img}`,
-            mime: 'image/png',
-            width: 1024,
-            height: 1024,
-            checksum: img.slice(0, 32)
-          })) : [],
-          outputAssets,
-          modelVersion: 'gemini-2.5-flash-image-preview',
-          timestamp: Date.now(),
-          // Tree relationship fields
-          parentGenerationId: parentId,
-          type: isIteration ? 'iteration' : 'root'
-        };
+            prompt: request.prompt,
+            parameters: {
+              seed: request.seed,
+              temperature: request.temperature
+            },
+            gridLayout: {
+              order: outputAssets.map((_, i) => i),
+              columns: Math.ceil(Math.sqrt(outputAssets.length))
+            },
+            sourceAssets: request.referenceImages ? request.referenceImages.map((img, index) => ({
+              id: generateId(),
+              type: 'original' as const,
+              url: `data:image/png;base64,${img}`,
+              mime: 'image/png',
+              width: 1024,
+              height: 1024,
+              checksum: img.slice(0, 32)
+            })) : [],
+            outputAssets,
+            modelVersion: 'gemini-2.5-flash-image-preview',
+            timestamp: Date.now(),
+            parentGenerationId: parentId,
+            type: isIteration ? 'iteration' : 'root',
+            brushStrokes: request.brushStrokes
+          };
 
-        addGeneration(generation);
-        setCanvasImages(outputAssets);
+          addGeneration(generation);
+          setCanvasImagesWithAutoZoom(outputAssets);
 
-        // Auto-select the new generation and clear edit selection
-        const { selectGeneration, selectEdit } = useAppStore.getState();
-        selectGeneration(generation.id);
-        selectEdit(null);
+          const { selectGeneration, selectEdit } = useAppStore.getState();
+          selectGeneration(generation.id);
+          selectEdit(null);
+
+          // Clear prompt since we've completed the operation and moved to the result
+          setCurrentPrompt('');
+        }
       }
       setIsGenerating(false);
     },
@@ -119,6 +184,7 @@ export const useImageEditing = () => {
     addEdit,
     setIsGenerating,
     setCanvasImages,
+    setCanvasImagesWithAutoZoom,
     canvasImages,
     editReferenceImages,
     brushStrokes,
@@ -303,14 +369,15 @@ export const useImageEditing = () => {
             order: outputAssets.map((_, i) => i),
             columns: Math.ceil(Math.sqrt(outputAssets.length))
           },
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          brushStrokes: brushStrokes.length > 0 ? brushStrokes : undefined
         };
 
         addEdit(edit);
 
         // Automatically load the edited images in the canvas and select the new edit
         const { selectEdit, selectGeneration } = useAppStore.getState();
-        setCanvasImages(outputAssets);
+        setCanvasImagesWithAutoZoom(outputAssets);
         selectEdit(edit.id);
         selectGeneration(null); // Clear generation selection to highlight the edit
       }

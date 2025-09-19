@@ -29,6 +29,8 @@ export interface Generation {
   // Tree relationship tracking
   parentGenerationId?: string; // For sibling generations (iterations)
   type: 'root' | 'iteration'; // Root = first gen, iteration = sibling of existing gen
+  // Mask state specific to this node
+  brushStrokes?: BrushStroke[];
 }
 
 export interface Edit {
@@ -41,6 +43,8 @@ export interface Edit {
   outputAssets: Asset[];
   gridLayout?: GridLayout; // How to arrange multiple outputs
   timestamp: number;
+  // Mask state specific to this node
+  brushStrokes?: BrushStroke[];
 }
 
 export interface Project {

@@ -41,34 +41,38 @@ export const ImageCanvas: React.FC = () => {
   useEffect(() => {
     if (canvasImages.length > 0) {
       const loadImages = async () => {
-        const images = await Promise.all(
-          canvasImages.map(async (asset) => {
-            try {
+        try {
+          const images = await Promise.all(
+            canvasImages.map(async (asset) => {
               const img = new window.Image();
               return new Promise<HTMLImageElement>((resolve, reject) => {
                 img.onload = () => resolve(img);
                 img.onerror = reject;
                 img.src = asset.url;
               });
-            } catch {
-              return null;
-            }
-          })
-        );
-        setGridImages(images);
+            })
+          );
+          // Only update images when all are successfully loaded
+          setGridImages(images);
 
-        // Auto-fit grid if this is new content
-        if (canvasZoom === 1 && canvasPan.x === 0 && canvasPan.y === 0) {
-          const isMobile = window.innerWidth < 768;
-          setCanvasZoom(isMobile ? 0.3 : 0.6);
-          setCanvasPan({ x: 0, y: 0 });
+          // Auto-fit grid if this is new content
+          if (canvasZoom === 1 && canvasPan.x === 0 && canvasPan.y === 0) {
+            const isMobile = window.innerWidth < 768;
+            setCanvasZoom(isMobile ? 0.5 : 1.0);
+            setCanvasPan({ x: 0, y: 0 });
+          }
+        } catch (error) {
+          console.error('Failed to load images:', error);
+          // Don't clear existing images on load error to prevent blank canvas
         }
       };
       loadImages();
     } else {
+      // Only clear images if we're definitely switching to empty state
+      // Don't clear during node transitions
       setGridImages([]);
     }
-  }, [canvasImages, stageSize, setCanvasZoom, setCanvasPan, canvasZoom, canvasPan]);
+  }, [canvasImages]);
 
   // Handle stage resize
   useEffect(() => {
@@ -96,7 +100,12 @@ export const ImageCanvas: React.FC = () => {
 
     // Calculate grid bounds for first image
     const { columns } = canvasGridLayout;
-    const gridSize = 300;
+    // Dynamic grid size based on number of images and screen size
+    const baseSize = Math.min(stageSize.width, stageSize.height) * 0.8;
+    const rows = Math.ceil(gridImages.length / canvasGridLayout.columns);
+    const maxDimension = Math.max(canvasGridLayout.columns, rows);
+    const calculatedSize = gridImages.length > 0 ? baseSize / maxDimension : 600;
+    const gridSize = Math.max(300, Math.min(600, calculatedSize));
     const spacing = 20;
     const totalWidth = columns * gridSize + (columns - 1) * spacing;
     const totalHeight = Math.ceil(gridImages.length / columns) * gridSize +
@@ -123,7 +132,12 @@ export const ImageCanvas: React.FC = () => {
 
     // Calculate grid bounds
     const { columns } = canvasGridLayout;
-    const gridSize = 300;
+    // Dynamic grid size based on number of images and screen size
+    const baseSize = Math.min(stageSize.width, stageSize.height) * 0.8;
+    const rows = Math.ceil(gridImages.length / canvasGridLayout.columns);
+    const maxDimension = Math.max(canvasGridLayout.columns, rows);
+    const calculatedSize = gridImages.length > 0 ? baseSize / maxDimension : 600;
+    const gridSize = Math.max(300, Math.min(600, calculatedSize));
     const spacing = 20;
     const totalWidth = columns * gridSize + (columns - 1) * spacing;
     const totalHeight = Math.ceil(gridImages.length / columns) * gridSize +
@@ -166,7 +180,7 @@ export const ImageCanvas: React.FC = () => {
   const handleReset = () => {
     if (gridImages.length > 0) {
       const isMobile = window.innerWidth < 768;
-      setCanvasZoom(isMobile ? 0.3 : 0.6);
+      setCanvasZoom(isMobile ? 0.5 : 1.0);
       setCanvasPan({ x: 0, y: 0 });
     }
   };
@@ -408,7 +422,12 @@ export const ImageCanvas: React.FC = () => {
 
               const row = Math.floor(displayIndex / columns);
               const col = displayIndex % columns;
-              const gridSize = 300; // Size of each grid cell
+              // Dynamic grid size based on number of images and screen size
+    const baseSize = Math.min(stageSize.width, stageSize.height) * 0.8;
+    const rows = Math.ceil(gridImages.length / canvasGridLayout.columns);
+    const maxDimension = Math.max(canvasGridLayout.columns, rows);
+    const calculatedSize = gridImages.length > 0 ? baseSize / maxDimension : 600;
+    const gridSize = Math.max(300, Math.min(600, calculatedSize)); // Size of each grid cell
               const spacing = 20;
 
               const totalWidth = columns * gridSize + (columns - 1) * spacing;
@@ -445,7 +464,12 @@ export const ImageCanvas: React.FC = () => {
               if (gridImages.length === 0) return null;
 
               const { columns } = canvasGridLayout;
-              const gridSize = 300;
+              // Dynamic grid size based on number of images and screen size
+    const baseSize = Math.min(stageSize.width, stageSize.height) * 0.8;
+    const rows = Math.ceil(gridImages.length / canvasGridLayout.columns);
+    const maxDimension = Math.max(canvasGridLayout.columns, rows);
+    const calculatedSize = gridImages.length > 0 ? baseSize / maxDimension : 600;
+    const gridSize = Math.max(300, Math.min(600, calculatedSize));
               const spacing = 20;
               const totalWidth = columns * gridSize + (columns - 1) * spacing;
               const totalHeight = Math.ceil(gridImages.length / columns) * gridSize +
@@ -482,8 +506,8 @@ export const ImageCanvas: React.FC = () => {
                 lineJoin="round"
                 globalCompositeOperation="source-over"
                 opacity={0.6}
-                x={(stageSize.width / canvasZoom - canvasGridLayout.columns * 320) / 2}
-                y={(stageSize.height / canvasZoom - Math.ceil(gridImages.length / canvasGridLayout.columns) * 320) / 2}
+                x={(stageSize.width / canvasZoom - canvasGridLayout.columns * 620) / 2}
+                y={(stageSize.height / canvasZoom - Math.ceil(gridImages.length / canvasGridLayout.columns) * 620) / 2}
               />
             )}
           </Layer>
