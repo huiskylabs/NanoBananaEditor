@@ -6,6 +6,7 @@ import { useImageGeneration } from '../hooks/useImageGeneration';
 import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { blobToBase64, generateId } from '../utils/imageUtils';
 import { PromptHints } from './PromptHints';
+import { AspectRatioSlider } from './AspectRatioSlider';
 import { cn } from '../utils/cn';
 
 export const PromptComposer: React.FC = () => {
@@ -27,6 +28,8 @@ export const PromptComposer: React.FC = () => {
     selectedGenerationId,
     selectedEditId,
     brushStrokes,
+    selectedAspectRatio,
+    setSelectedAspectRatio,
   } = useAppStore();
 
   const { generate } = useImageGeneration();
@@ -51,7 +54,8 @@ export const PromptComposer: React.FC = () => {
       referenceImages: allImages.length > 0 ? allImages : undefined,
       temperature,
       seed: seed || undefined,
-      brushStrokes: brushStrokes.length > 0 ? brushStrokes : undefined
+      brushStrokes: brushStrokes.length > 0 ? brushStrokes : undefined,
+      aspectRatio: selectedAspectRatio
     });
   };
 
@@ -246,6 +250,11 @@ export const PromptComposer: React.FC = () => {
         </button>
       </div>
 
+      {/* Aspect Ratio Slider */}
+      <AspectRatioSlider
+        value={selectedAspectRatio}
+        onChange={setSelectedAspectRatio}
+      />
 
       {/* Generate Button */}
       <Button

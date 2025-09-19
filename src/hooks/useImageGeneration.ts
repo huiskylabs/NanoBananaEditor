@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { geminiService, GenerationRequest, EditRequest } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
 import { generateId } from '../utils/imageUtils';
-import { Generation, Edit, Asset, BrushStroke } from '../types';
+import { Generation, Edit, Asset, BrushStroke, AspectRatio } from '../types';
 
 // Unified request interface for the new workflow
 interface UnifiedGenerationRequest {
@@ -11,6 +11,7 @@ interface UnifiedGenerationRequest {
   temperature?: number;
   seed?: number;
   brushStrokes?: BrushStroke[];
+  aspectRatio?: AspectRatio;
 }
 
 export const useImageGeneration = () => {

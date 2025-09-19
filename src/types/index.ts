@@ -80,3 +80,10 @@ export interface PromptHint {
   text: string;
   example: string;
 }
+
+export interface AspectRatio {
+  label: string;
+  width: number;
+  height: number;
+  ratio: number;
+}
