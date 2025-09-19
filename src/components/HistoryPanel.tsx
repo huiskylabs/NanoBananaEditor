@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info } from 'lucide-react';
+import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { ImagePreviewModal } from './ImagePreviewModal';
 import { Stage, Layer, Image as KonvaImage, Group, Rect, Text, Line, Path } from 'react-konva';
@@ -21,8 +21,10 @@ export const HistoryPanel: React.FC = () => {
     setCanvasImages,
     selectedTool,
     historyPanelWidth,
-    setCurrentPrompt
+    setCurrentNodeDetails,
+    currentNodeDetails
   } = useAppStore();
+
 
   const [previewModal, setPreviewModal] = React.useState<{
     open: boolean;
@@ -48,25 +50,21 @@ export const HistoryPanel: React.FC = () => {
     y: number;
     type: 'generation' | 'edit';
     data: Generation | Edit;
-    imageElement?: HTMLImageElement;
+    thumbnailElement?: HTMLImageElement;
   }>>([]);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [treeZoom, setTreeZoom] = useState(0.8);
   const [treePan, setTreePan] = useState({ x: 0, y: 0 }); // Tree will be centered automatically
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
-  const [tooltip, setTooltip] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    content: string;
-    title: string;
-  }>({
-    visible: false,
-    x: 0,
-    y: 0,
-    content: '',
-    title: ''
-  });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
 
   // Measure container size for Stage
   useEffect(() => {
@@ -96,6 +94,62 @@ export const HistoryPanel: React.FC = () => {
       img.onload = () => resolve(img);
       img.onerror = reject;
       img.src = imageUrl;
+    });
+  };
+
+  // Create canvas thumbnail from multiple images with grid layout
+  const createCanvasThumbnail = async (outputAssets: any[], gridLayout: any): Promise<HTMLImageElement> => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+
+    // Set thumbnail size
+    const thumbnailSize = 76;
+    canvas.width = thumbnailSize;
+    canvas.height = thumbnailSize;
+
+    // Fill with dark background
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(0, 0, thumbnailSize, thumbnailSize);
+
+    if (outputAssets.length === 0) return Promise.reject('No assets');
+
+    // Calculate grid dimensions
+    const columns = gridLayout?.columns || Math.ceil(Math.sqrt(outputAssets.length));
+    const rows = Math.ceil(outputAssets.length / columns);
+
+    // Calculate cell size with small gaps
+    const gap = 2;
+    const cellWidth = (thumbnailSize - (gap * (columns + 1))) / columns;
+    const cellHeight = (thumbnailSize - (gap * (rows + 1))) / rows;
+
+    // Load and draw images
+    const imagePromises = outputAssets.map(asset => loadImageForNode(asset.url));
+    const images = await Promise.all(imagePromises);
+
+    images.forEach((img, index) => {
+      const col = index % columns;
+      const row = Math.floor(index / columns);
+
+      const x = gap + col * (cellWidth + gap);
+      const y = gap + row * (cellHeight + gap);
+
+      // Draw image scaled to fit cell
+      ctx.drawImage(img, x, y, cellWidth, cellHeight);
+    });
+
+    // Convert canvas to image element
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) return reject('Failed to create blob');
+
+        const img = new window.Image();
+        img.onload = () => {
+          URL.revokeObjectURL(img.src);
+          resolve(img);
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(blob);
+      });
     });
   };
 
@@ -132,7 +186,7 @@ export const HistoryPanel: React.FC = () => {
       type: 'generation',
       data: {
         id: 'blank-root',
-        prompt: 'Start here',
+        prompt: 'New',
         parameters: {},
         sourceAssets: [],
         outputAssets: [],
@@ -306,7 +360,7 @@ export const HistoryPanel: React.FC = () => {
       y: treeNode.y,
       type: treeNode.type,
       data: treeNode.data,
-      imageElement: undefined as HTMLImageElement | undefined
+      thumbnailElement: undefined as HTMLImageElement | undefined
     }));
 
     setNodes(displayNodes);
@@ -318,36 +372,43 @@ export const HistoryPanel: React.FC = () => {
       setActiveNodeId(selectedEditId);
     }
 
-    // Load images for nodes asynchronously
+    // Create canvas thumbnails for nodes asynchronously
     displayNodes.forEach(async (node) => {
       if (node.id === 'blank-root') return; // Skip blank root
 
-      let imageUrl: string | undefined;
+      let outputAssets: any[] = [];
+      let gridLayout: any = {};
 
       if (node.type === 'generation') {
         const gen = node.data as Generation;
-        imageUrl = gen.outputAssets[0]?.url;
+        outputAssets = gen.outputAssets;
+        gridLayout = gen.gridLayout;
       } else {
         const edit = node.data as Edit;
-        imageUrl = edit.outputAssets[0]?.url;
+        outputAssets = edit.outputAssets;
+        gridLayout = edit.gridLayout;
       }
 
-      if (imageUrl) {
+      if (outputAssets.length > 0) {
         try {
-          const imageElement = await loadImageForNode(imageUrl);
+          const thumbnailElement = await createCanvasThumbnail(outputAssets, gridLayout);
           setNodes(prevNodes =>
             prevNodes.map(n =>
               n.id === node.id
-                ? { ...n, imageElement }
+                ? { ...n, thumbnailElement }
                 : n
             )
           );
         } catch (error) {
-          console.warn(`Failed to load image for node ${node.id}:`, error);
+          console.warn(`Failed to create thumbnail for node ${node.id}:`, error);
         }
       }
     });
   }, [currentProject, selectedGenerationId, selectedEditId]);
+
+  // NOTE: Removed automatic thumbnail updates to prevent corruption
+  // Thumbnails are now only created during initial node creation and explicit uploads
+  // This prevents the canvas view from corrupting existing node thumbnails
 
   // Update active node based on selection
   useEffect(() => {
@@ -369,6 +430,7 @@ export const HistoryPanel: React.FC = () => {
     if (node.id === 'blank-root') {
       // Click on blank root - clear selection and return to blank state
       clearSelection();
+      setCurrentNodeDetails(null);
     } else if (node.type === 'generation') {
       selectGeneration(node.id);
       selectEdit(null);
@@ -376,8 +438,16 @@ export const HistoryPanel: React.FC = () => {
       if (gen.outputAssets.length > 0) {
         setCanvasImages(gen.outputAssets);
       }
-      // Restore the prompt that was used for this generation
-      setCurrentPrompt(gen.prompt || '');
+      // Set current node details for display (don't overwrite user input)
+      setCurrentNodeDetails({
+        prompt: gen.prompt || '',
+        nodeType: 'generation',
+        modelVersion: gen.modelVersion,
+        temperature: gen.parameters.temperature,
+        seed: gen.parameters.seed,
+        timestamp: gen.timestamp
+      });
+
     } else {
       selectEdit(node.id);
       selectGeneration(null);
@@ -385,8 +455,12 @@ export const HistoryPanel: React.FC = () => {
       if (edit.outputAssets.length > 0) {
         setCanvasImages(edit.outputAssets);
       }
-      // Restore the instruction that was used for this edit
-      setCurrentPrompt(edit.instruction || '');
+      // Set current node details for display (don't overwrite user input)
+      setCurrentNodeDetails({
+        prompt: edit.instruction || '',
+        nodeType: 'edit',
+        timestamp: edit.timestamp
+      });
     }
   };
 
@@ -421,15 +495,6 @@ export const HistoryPanel: React.FC = () => {
         </div>
         <div className="flex items-center space-x-1">
           <Button
-            variant="outline"
-            size="sm"
-            onClick={clearSelection}
-            className="h-6 px-2 text-xs"
-            title="Start New - Return to blank canvas"
-          >
-            New
-          </Button>
-          <Button
             variant="ghost"
             size="icon"
             onClick={() => setShowHistory(!showHistory)}
@@ -442,7 +507,7 @@ export const HistoryPanel: React.FC = () => {
       </div>
 
       {/* Tree View */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-xs font-medium text-gray-400">Tree View</h4>
           <div className="flex items-center space-x-1">
@@ -508,7 +573,7 @@ export const HistoryPanel: React.FC = () => {
         </div>
         <div
           ref={containerRef}
-          className="flex-1 bg-gray-900 rounded-lg border border-gray-700 overflow-hidden relative"
+          className="flex-1 bg-gray-900 rounded-lg border border-gray-700 overflow-hidden relative min-h-0"
         >
           {nodes.length === 0 ? (
             <div className="h-full flex items-center justify-center">
@@ -528,8 +593,13 @@ export const HistoryPanel: React.FC = () => {
                 x={treePan.x}
                 y={treePan.y}
                 draggable
+                onDragStart={() => setIsDragging(true)}
                 onDragEnd={(e) => {
                   setTreePan({ x: e.target.x(), y: e.target.y() });
+                  setIsDragging(false);
+                }}
+                style={{
+                  cursor: isDragging ? 'grabbing' : 'default'
                 }}
               >
               <Layer>
@@ -619,60 +689,18 @@ export const HistoryPanel: React.FC = () => {
                       cornerRadius={6}
                     />
 
-                    {/* Image preview */}
-                    {node.imageElement && (
+                    {/* Canvas thumbnail preview */}
+                    {node.thumbnailElement && (
                       <KonvaImage
-                        image={node.imageElement}
+                        image={node.thumbnailElement}
                         width={76}
                         height={76}
                         x={2}
                         y={2}
                         cornerRadius={4}
-                        crop={{
-                          x: 0,
-                          y: 0,
-                          width: node.imageElement.width,
-                          height: node.imageElement.height
-                        }}
                       />
                     )}
 
-                    {/* Multi-image badge */}
-                    {(() => {
-                      let outputCount = 0;
-                      if (node.type === 'generation') {
-                        const gen = node.data as Generation;
-                        outputCount = gen.outputAssets.length;
-                      } else {
-                        const edit = node.data as Edit;
-                        outputCount = edit.outputAssets.length;
-                      }
-
-                      if (outputCount > 1) {
-                        return (
-                          <>
-                            <Rect
-                              x={60}
-                              y={5}
-                              width={16}
-                              height={16}
-                              fill="#059669"
-                              cornerRadius={8}
-                            />
-                            <Text
-                              x={68}
-                              y={9}
-                              text={`${outputCount}`}
-                              fontSize={8}
-                              fill="white"
-                              align="center"
-                              width={0}
-                            />
-                          </>
-                        );
-                      }
-                      return null;
-                    })()}
 
                     {/* Overlay for blank root */}
                     {node.id === 'blank-root' && (
@@ -688,10 +716,11 @@ export const HistoryPanel: React.FC = () => {
                         <Text
                           x={40}
                           y={40}
-                          text="🎨"
-                          fontSize={24}
+                          text="+"
+                          fontSize={32}
+                          fill="#6b7280"
                           align="center"
-                          offsetX={12}
+                          offsetX={9}
                           offsetY={12}
                         />
                       </>
@@ -715,60 +744,6 @@ export const HistoryPanel: React.FC = () => {
                       align="center"
                     />
 
-                    {/* Info icon for hover tooltip */}
-                    {node.id !== 'blank-root' && (
-                      <Group
-                        onMouseEnter={(e) => {
-                          const stage = e.target.getStage();
-                          const pointerPos = stage.getPointerPosition();
-
-                          let content = '';
-                          let title = '';
-
-                          if (node.type === 'generation') {
-                            const gen = node.data as Generation;
-                            title = 'Generation Details';
-                            content = `Prompt: ${gen.prompt}\nModel: ${gen.modelVersion}`;
-                            if (gen.parameters.seed) content += `\nSeed: ${gen.parameters.seed}`;
-                            if (gen.parameters.temperature) content += `\nTemperature: ${gen.parameters.temperature}`;
-                          } else {
-                            const edit = node.data as Edit;
-                            title = 'Edit Details';
-                            content = `Instruction: ${edit.instruction}\nType: Image Edit`;
-                          }
-
-                          setTooltip({
-                            visible: true,
-                            x: pointerPos.x,
-                            y: pointerPos.y,
-                            content,
-                            title
-                          });
-                        }}
-                        onMouseLeave={() => {
-                          setTooltip(prev => ({ ...prev, visible: false }));
-                        }}
-                      >
-                        <Rect
-                          x={66}
-                          y={2}
-                          width={12}
-                          height={12}
-                          fill="#374151"
-                          stroke="#6b7280"
-                          strokeWidth={1}
-                          cornerRadius={2}
-                        />
-                        <Text
-                          x={72}
-                          y={8}
-                          text="i"
-                          fontSize={8}
-                          fill="#9ca3af"
-                          align="center"
-                        />
-                      </Group>
-                    )}
                   </Group>
                 ))}
               </Layer>
@@ -783,20 +758,72 @@ export const HistoryPanel: React.FC = () => {
             </div>
           )}
 
-          {/* Tooltip overlay */}
-          {tooltip.visible && (
-            <div
-              className="absolute z-50 bg-gray-800 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 max-w-64 shadow-lg pointer-events-none"
-              style={{
-                left: Math.min(tooltip.x + 10, 250), // Keep within panel bounds
-                top: Math.max(tooltip.y - 10, 10),
-              }}
-            >
-              <div className="font-medium text-gray-200 mb-1">{tooltip.title}</div>
-              <div className="whitespace-pre-line">{tooltip.content}</div>
-            </div>
-          )}
         </div>
+      </div>
+
+      {/* Current Node Details */}
+      <div className="flex-shrink-0" style={{ height: '200px' }}>
+      {currentNodeDetails ? (
+        <div className="pt-4 border-t border-gray-800 h-full overflow-y-auto">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-gray-300">Node Details</h4>
+            <span className="text-xs text-blue-400 capitalize px-2 py-1 bg-blue-500/10 rounded">
+              {currentNodeDetails.nodeType}
+            </span>
+          </div>
+          <div className="space-y-3 text-sm">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400 text-xs">Prompt:</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 w-5 p-0 text-gray-400 hover:text-gray-200"
+                  onClick={() => copyToClipboard(currentNodeDetails.prompt)}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+              <div className="text-gray-300 text-sm leading-relaxed break-words bg-gray-800/50 rounded p-2 border border-gray-700 max-h-20 overflow-y-auto">
+                {currentNodeDetails.prompt}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              {currentNodeDetails.modelVersion && (
+                <div>
+                  <span className="text-gray-400">Model:</span>
+                  <div className="text-gray-300 truncate">{currentNodeDetails.modelVersion}</div>
+                </div>
+              )}
+              {currentNodeDetails.temperature !== undefined && (
+                <div>
+                  <span className="text-gray-400">Temperature:</span>
+                  <div className="text-gray-300">{currentNodeDetails.temperature}</div>
+                </div>
+              )}
+              {currentNodeDetails.seed !== undefined && currentNodeDetails.seed !== null && (
+                <div>
+                  <span className="text-gray-400">Seed:</span>
+                  <div className="text-gray-300">{currentNodeDetails.seed}</div>
+                </div>
+              )}
+              {currentNodeDetails.timestamp && (
+                <div>
+                  <span className="text-gray-400">Created:</span>
+                  <div className="text-gray-300">{new Date(currentNodeDetails.timestamp).toLocaleDateString()}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="pt-4 border-t border-gray-800 h-full flex items-center justify-center">
+          <div className="text-center">
+            <h4 className="text-sm font-medium text-gray-400 mb-1">No Node Selected</h4>
+            <p className="text-xs text-gray-500">Click a node in the tree to view details</p>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Image Preview Modal */}

@@ -98,19 +98,6 @@ export const useImageGeneration = () => {
         const { selectGeneration, selectEdit } = useAppStore.getState();
         selectGeneration(generation.id);
         selectEdit(null);
-        
-        // Create project if none exists
-        if (!currentProject) {
-          const newProject = {
-            id: generateId(),
-            title: 'Untitled Project',
-            generations: [generation],
-            edits: [],
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          };
-          setCurrentProject(newProject);
-        }
       }
       setIsGenerating(false);
     },
@@ -292,7 +279,14 @@ export const useImageEditing = () => {
           parentGenerationId = selectedGenerationId;
         } else {
           // Fallback to most recent generation
-          parentGenerationId = currentProject?.generations[currentProject.generations.length - 1]?.id || '';
+          const mostRecentGeneration = currentProject?.generations[currentProject.generations.length - 1];
+          if (mostRecentGeneration) {
+            parentGenerationId = mostRecentGeneration.id;
+          } else {
+            // This shouldn't happen anymore since uploads now auto-create nodes
+            // But keeping as fallback
+            parentGenerationId = undefined;
+          }
         }
 
         console.log('Edit logic:', { selectedGenerationId, selectedEditId, parentGenerationId, parentEditId });

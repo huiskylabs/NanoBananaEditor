@@ -38,7 +38,17 @@ interface AppState {
 
   // UI state
   selectedTool: 'generate' | 'edit' | 'mask';
-  
+
+  // Current node details for display (separate from input prompt)
+  currentNodeDetails: {
+    prompt: string;
+    nodeType: 'generation' | 'edit' | null;
+    modelVersion?: string;
+    temperature?: number;
+    seed?: number | null;
+    timestamp?: number;
+  } | null;
+
   // Actions
   setCurrentProject: (project: Project | null) => void;
   setCanvasImages: (images: Asset[]) => void;
@@ -69,9 +79,18 @@ interface AppState {
   
   addGeneration: (generation: Generation) => void;
   addEdit: (edit: Edit) => void;
+  updateNodeWithCanvasImages: (nodeId: string, canvasImages: Asset[]) => void;
   selectGeneration: (id: string | null) => void;
   selectEdit: (id: string | null) => void;
   clearSelection: () => void;
+  setCurrentNodeDetails: (details: {
+    prompt: string;
+    nodeType: 'generation' | 'edit' | null;
+    modelVersion?: string;
+    temperature?: number;
+    seed?: number | null;
+    timestamp?: number;
+  } | null) => void;
   setShowHistory: (show: boolean) => void;
   
   setShowPromptPanel: (show: boolean) => void;
@@ -110,6 +129,7 @@ export const useAppStore = create<AppState>()(
       historyPanelWidth: 320,
 
       selectedTool: 'generate',
+      currentNodeDetails: null,
       
       // Actions
       setCurrentProject: (project) => set({ currentProject: project }),
@@ -179,22 +199,106 @@ export const useAppStore = create<AppState>()(
       setTemperature: (temp) => set({ temperature: temp }),
       setSeed: (seed) => set({ seed: seed }),
       
-      addGeneration: (generation) => set((state) => ({
-        currentProject: state.currentProject ? {
-          ...state.currentProject,
-          generations: [...state.currentProject.generations, generation],
-          updatedAt: Date.now()
-        } : null
-      })),
+      addGeneration: (generation) => set((state) => {
+        if (state.currentProject) {
+          // Project exists, add generation to it
+          return {
+            currentProject: {
+              ...state.currentProject,
+              generations: [...state.currentProject.generations, generation],
+              updatedAt: Date.now()
+            }
+          };
+        } else {
+          // No project exists, create one with this generation
+          const newProject = {
+            id: `project-${Date.now()}`,
+            title: 'Untitled Project',
+            generations: [generation],
+            edits: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          };
+          return { currentProject: newProject };
+        }
+      }),
       
-      addEdit: (edit) => set((state) => ({
-        currentProject: state.currentProject ? {
-          ...state.currentProject,
-          edits: [...state.currentProject.edits, edit],
-          updatedAt: Date.now()
-        } : null
-      })),
-      
+      addEdit: (edit) => set((state) => {
+        if (state.currentProject) {
+          // Project exists, add edit to it
+          return {
+            currentProject: {
+              ...state.currentProject,
+              edits: [...state.currentProject.edits, edit],
+              updatedAt: Date.now()
+            }
+          };
+        } else {
+          // No project exists, create one with this edit
+          const newProject = {
+            id: `project-${Date.now()}`,
+            title: 'Untitled Project',
+            generations: [],
+            edits: [edit],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          };
+          return { currentProject: newProject };
+        }
+      }),
+
+      updateNodeWithCanvasImages: (nodeId, canvasImages) => set((state) => {
+        if (!state.currentProject) return state;
+
+        // Update generation if nodeId matches a generation
+        const generationIndex = state.currentProject.generations.findIndex(g => g.id === nodeId);
+        if (generationIndex !== -1) {
+          const updatedGenerations = [...state.currentProject.generations];
+          updatedGenerations[generationIndex] = {
+            ...updatedGenerations[generationIndex],
+            outputAssets: canvasImages,
+            gridLayout: {
+              order: canvasImages.map((_, i) => i),
+              columns: Math.ceil(Math.sqrt(canvasImages.length))
+            },
+            updatedAt: Date.now()
+          };
+
+          return {
+            currentProject: {
+              ...state.currentProject,
+              generations: updatedGenerations,
+              updatedAt: Date.now()
+            }
+          };
+        }
+
+        // Update edit if nodeId matches an edit
+        const editIndex = state.currentProject.edits.findIndex(e => e.id === nodeId);
+        if (editIndex !== -1) {
+          const updatedEdits = [...state.currentProject.edits];
+          updatedEdits[editIndex] = {
+            ...updatedEdits[editIndex],
+            outputAssets: canvasImages,
+            gridLayout: {
+              order: canvasImages.map((_, i) => i),
+              columns: Math.ceil(Math.sqrt(canvasImages.length))
+            },
+            updatedAt: Date.now()
+          };
+
+          return {
+            currentProject: {
+              ...state.currentProject,
+              edits: updatedEdits,
+              updatedAt: Date.now()
+            }
+          };
+        }
+
+        return state; // Node not found
+      }),
+
       selectGeneration: (id) => set({ selectedGenerationId: id }),
       selectEdit: (id) => set({ selectedEditId: id }),
       clearSelection: () => set({
@@ -211,6 +315,7 @@ export const useAppStore = create<AppState>()(
       setShowPromptPanel: (show) => set({ showPromptPanel: show }),
       setHistoryPanelWidth: (width) => set({ historyPanelWidth: width }),
 
+      setCurrentNodeDetails: (details) => set({ currentNodeDetails: details }),
       setSelectedTool: (tool) => set({ selectedTool: tool }),
     }),
     { name: 'nano-banana-store' }

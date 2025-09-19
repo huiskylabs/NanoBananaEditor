@@ -24,7 +24,7 @@ export const InfiniteCanvas: React.FC = () => {
     selectedEditId,
     selectGeneration,
     selectEdit,
-    setCanvasImage
+    setCanvasImages
   } = useAppStore();
 
   const stageRef = useRef<any>(null);
@@ -138,15 +138,15 @@ export const InfiniteCanvas: React.FC = () => {
       selectGeneration(node.id);
       selectEdit(null);
       const gen = node.data as Generation;
-      if (gen.outputAssets[0]) {
-        setCanvasImage(gen.outputAssets[0].url);
+      if (gen.outputAssets.length > 0) {
+        setCanvasImages(gen.outputAssets);
       }
     } else {
       selectEdit(node.id);
       selectGeneration(null);
       const edit = node.data as Edit;
-      if (edit.outputAssets[0]) {
-        setCanvasImage(edit.outputAssets[0].url);
+      if (edit.outputAssets.length > 0) {
+        setCanvasImages(edit.outputAssets);
       }
     }
   };

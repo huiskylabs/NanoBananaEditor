@@ -189,6 +189,8 @@ export const ImageCanvas: React.FC = () => {
     const files = Array.from(e.dataTransfer.files);
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
 
+    const isFirstUpload = canvasImages.length === 0;
+
     for (const file of imageFiles) {
       try {
         const base64 = await blobToBase64(file);
@@ -205,6 +207,45 @@ export const ImageCanvas: React.FC = () => {
       } catch (error) {
         console.error('Failed to process dropped image:', error);
       }
+    }
+
+    // Handle node creation or update after upload
+    if (imageFiles.length > 0) {
+      setTimeout(() => {
+        const { canvasImages, addGeneration, selectGeneration, selectEdit, currentProject, selectedGenerationId, selectedEditId, updateNodeWithCanvasImages } = useAppStore.getState();
+
+        if (isFirstUpload) {
+          // First upload - only create a new node if there's no current project or selection
+          if (canvasImages.length > 0 && !currentProject && !selectedGenerationId && !selectedEditId) {
+            const uploadGeneration = {
+              id: generateId(),
+              prompt: 'Uploaded images',
+              parameters: { seed: undefined, temperature: 0.7 },
+              gridLayout: {
+                order: canvasImages.map((_, i) => i),
+                columns: Math.ceil(Math.sqrt(canvasImages.length))
+              },
+              sourceAssets: [],
+              outputAssets: canvasImages,
+              modelVersion: 'uploaded',
+              timestamp: Date.now(),
+              parentGenerationId: undefined,
+              type: 'root' as const
+            };
+
+            addGeneration(uploadGeneration);
+            selectGeneration(uploadGeneration.id);
+            selectEdit(null);
+          }
+        } else {
+          // Adding images to existing node - update the selected node with new canvas images
+          if (selectedGenerationId) {
+            updateNodeWithCanvasImages(selectedGenerationId, canvasImages);
+          } else if (selectedEditId) {
+            updateNodeWithCanvasImages(selectedEditId, canvasImages);
+          }
+        }
+      }, 100);
     }
   };
 
@@ -461,10 +502,6 @@ export const ImageCanvas: React.FC = () => {
             )}
           </div>
           
-          <div className="flex items-center space-x-2">
-            <span className="text-yellow-400 hidden md:inline">⚡</span>
-            <span className="hidden md:inline">Powered by Gemini 2.5 Flash Image</span>
-          </div>
         </div>
       </div>
     </div>

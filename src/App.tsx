@@ -75,10 +75,11 @@ function AppContent() {
       const isMobile = window.innerWidth < 768;
       if (isMobile) {
         setShowPromptPanel(false);
-        setShowHistory(false);
+        // Don't hide history on mobile by default - let user control it
+        // setShowHistory(false);
       }
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);

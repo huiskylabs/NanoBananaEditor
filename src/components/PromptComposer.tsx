@@ -30,6 +30,9 @@ export const PromptComposer: React.FC = () => {
     showPromptPanel,
     setShowPromptPanel,
     clearBrushStrokes,
+    currentProject,
+    selectedGenerationId,
+    selectedEditId,
   } = useAppStore();
 
   const { generate } = useImageGeneration();
@@ -68,12 +71,7 @@ export const PromptComposer: React.FC = () => {
         const dataUrl = `data:${file.type};base64,${base64}`;
 
         if (canvasImages.length > 0) {
-          // If there are already canvas images, add as style reference for editing
-          if (editReferenceImages.length < 2) {
-            addEditReferenceImage(dataUrl);
-          }
-        } else {
-          // If no canvas images, add to canvas grid
+          // If there are already canvas images, add to canvas to expand the existing node
           const asset = {
             id: generateId(),
             type: 'original' as const,
@@ -85,6 +83,57 @@ export const PromptComposer: React.FC = () => {
           };
           addCanvasImage(asset);
           addUploadedImage(dataUrl);
+
+          // Update existing node with expanded canvas
+          setTimeout(() => {
+            const { canvasImages: updatedImages, selectedGenerationId, selectedEditId, updateNodeWithCanvasImages } = useAppStore.getState();
+            if (selectedGenerationId) {
+              updateNodeWithCanvasImages(selectedGenerationId, updatedImages);
+            } else if (selectedEditId) {
+              updateNodeWithCanvasImages(selectedEditId, updatedImages);
+            }
+          }, 100);
+        } else {
+          // If no canvas images, add to canvas grid and create an upload node
+          const asset = {
+            id: generateId(),
+            type: 'original' as const,
+            url: dataUrl,
+            mime: file.type,
+            width: 1024,
+            height: 1024,
+            checksum: base64.slice(0, 32)
+          };
+          addCanvasImage(asset);
+          addUploadedImage(dataUrl);
+
+          // Create a generation node for uploaded images automatically
+          // This will trigger after all images are uploaded to group them properly
+          setTimeout(() => {
+            const { canvasImages: currentImages, currentProject, selectedGenerationId, selectedEditId } = useAppStore.getState();
+            if (currentImages.length > 0 && !currentProject && !selectedGenerationId && !selectedEditId) {
+              const uploadGeneration = {
+                id: generateId(),
+                prompt: 'Uploaded images',
+                parameters: { seed: undefined, temperature: 0.7 },
+                gridLayout: {
+                  order: currentImages.map((_, i) => i),
+                  columns: Math.ceil(Math.sqrt(currentImages.length))
+                },
+                sourceAssets: [],
+                outputAssets: currentImages,
+                modelVersion: 'uploaded',
+                timestamp: Date.now(),
+                parentGenerationId: undefined,
+                type: 'root' as const
+              };
+
+              const { addGeneration, selectGeneration, selectEdit } = useAppStore.getState();
+              addGeneration(uploadGeneration);
+              selectGeneration(uploadGeneration.id);
+              selectEdit(null);
+            }
+          }, 100); // Small delay to allow multiple uploads to complete
         }
       } catch (error) {
         console.error('Failed to upload image:', error);
@@ -356,32 +405,6 @@ export const PromptComposer: React.FC = () => {
         )}
       </div>
 
-      {/* Keyboard Shortcuts */}
-      <div className="pt-4 border-t border-gray-800">
-        <h4 className="text-xs font-medium text-gray-400 mb-2">Shortcuts</h4>
-        <div className="space-y-1 text-xs text-gray-500">
-          <div className="flex justify-between">
-            <span>Generate</span>
-            <span>⌘ + Enter</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Re-roll</span>
-            <span>⇧ + R</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Edit mode</span>
-            <span>E</span>
-          </div>
-          <div className="flex justify-between">
-            <span>History</span>
-            <span>H</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Toggle Panel</span>
-            <span>P</span>
-          </div>
-        </div>
-      </div>
     </div>
     {/* Prompt Hints Modal */}
     <PromptHints open={showHintsModal} onOpenChange={setShowHintsModal} />
