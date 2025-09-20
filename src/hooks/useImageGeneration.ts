@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { geminiService, GenerationRequest, EditRequest } from '../services/geminiService';
+import { falService } from '../services/falService';
 import { useAppStore } from '../store/useAppStore';
 import { generateId } from '../utils/imageUtils';
 import { Generation, Edit, Asset, BrushStroke, AspectRatio } from '../types';
@@ -12,36 +13,59 @@ interface UnifiedGenerationRequest {
   seed?: number;
   brushStrokes?: BrushStroke[];
   aspectRatio?: AspectRatio;
+  visualGridSize?: number; // Visual size of the canvas grid cell in pixels
 }
 
 export const useImageGeneration = () => {
-  const { addGeneration, setIsGenerating, setCanvasImages, setCanvasImagesWithAutoZoom, setCurrentProject, currentProject, selectedGenerationId, selectedEditId, setCurrentPrompt, clearBrushStrokes, selectedAspectRatio } = useAppStore();
+  const { addGeneration, setIsGenerating, setCanvasImages, setCanvasImagesWithAutoZoom, setCurrentProject, currentProject, selectedGenerationId, selectedEditId, setCurrentPrompt, clearBrushStrokes, selectedAspectRatio, useRealAPI } = useAppStore();
 
   const generateMutation = useMutation({
     mutationFn: async (request: UnifiedGenerationRequest) => {
+      // Always use mock API for empty prompts (random generation)
+      const isEmptyPrompt = !request.prompt || request.prompt.trim() === '';
+      const service = isEmptyPrompt ? geminiService : (useRealAPI ? falService : geminiService);
+
+      // Log API provider selection
+      const apiProvider = isEmptyPrompt ? 'MOCK (empty prompt)' : (useRealAPI ? 'FAL AI' : 'MOCK');
+      console.log(`🔧 API Provider: ${apiProvider}`);
+      console.log('📊 Request payload:', {
+        prompt: request.prompt,
+        hasReferenceImages: !!(request.referenceImages && request.referenceImages.length > 0),
+        referenceImageCount: request.referenceImages?.length || 0,
+        hasBrushStrokes: !!(request.brushStrokes && request.brushStrokes.length > 0),
+        brushStrokeCount: request.brushStrokes?.length || 0,
+        temperature: request.temperature,
+        seed: request.seed,
+        aspectRatio: request.aspectRatio ? `${request.aspectRatio.width}x${request.aspectRatio.height}` : 'default'
+      });
+
       // Determine if this should be a generation or edit based on inputs
       if (request.brushStrokes && request.brushStrokes.length > 0 && request.referenceImages && request.referenceImages.length > 0) {
         // Has brush strokes and reference images - treat as edit
-        const editRequest: EditRequest = {
+        const editRequest: EditRequest & { brushStrokes?: BrushStroke[]; visualGridSize?: number } = {
           instruction: request.prompt,
           originalImage: request.referenceImages[0], // First image as primary
           referenceImages: request.referenceImages.slice(1), // Rest as references
           maskImage: undefined, // Will be generated from brush strokes
           temperature: request.temperature,
-          seed: request.seed
+          seed: request.seed,
+          brushStrokes: request.brushStrokes, // Pass brush strokes to FAL service
+          visualGridSize: request.visualGridSize // Pass visual grid size for coordinate scaling
         };
-        const images = await geminiService.editImage(editRequest);
+        const images = await service.editImage(editRequest);
         return { images, isEdit: true, brushStrokes: request.brushStrokes };
       } else {
         // No brush strokes or no reference images - treat as generation
-        const generationRequest: GenerationRequest = {
+        const generationRequest: GenerationRequest & { brushStrokes?: BrushStroke[]; visualGridSize?: number } = {
           prompt: request.prompt,
           referenceImages: request.referenceImages,
           temperature: request.temperature,
           seed: request.seed,
-          aspectRatio: request.aspectRatio
+          aspectRatio: request.aspectRatio,
+          brushStrokes: request.brushStrokes, // Pass brush strokes to FAL service
+          visualGridSize: request.visualGridSize // Pass visual grid size for coordinate scaling
         };
-        const images = await geminiService.generateImage(generationRequest);
+        const images = await service.generateImage(generationRequest);
         return { images, isEdit: false };
       }
     },
@@ -97,12 +121,15 @@ export const useImageGeneration = () => {
 
           addEdit(edit);
 
-          // Clear brush strokes since they've been applied to the edit
+          // Brush strokes are now saved to the edit node, clear global state for fresh canvas
+          console.log('🧹 Clearing global brush strokes after successful edit - strokes saved to edit node');
           clearBrushStrokes();
 
           setCanvasImagesWithAutoZoom(outputAssets);
           selectEdit(edit.id);
           selectGeneration(null);
+
+          // Note: New edit nodes start with no brush strokes (fresh canvas for editing)
 
           // Clear prompt since we've completed the operation and moved to the result
           setCurrentPrompt('');
@@ -152,7 +179,7 @@ export const useImageGeneration = () => {
               checksum: img.slice(0, 32)
             })) : [],
             outputAssets,
-            modelVersion: 'gemini-2.5-flash-image-preview',
+            modelVersion: useRealAPI ? 'fal-ai/seedream/v4/edit' : 'gemini-2.5-flash-image-preview',
             timestamp: Date.now(),
             parentGenerationId: parentId,
             type: isIteration ? 'iteration' : 'root',
@@ -160,11 +187,18 @@ export const useImageGeneration = () => {
           };
 
           addGeneration(generation);
+
+          // Brush strokes are now saved to the generation node, clear global state for fresh canvas
+          console.log('🧹 Clearing global brush strokes after successful generation - strokes saved to generation node');
+          clearBrushStrokes();
+
           setCanvasImagesWithAutoZoom(outputAssets);
 
           const { selectGeneration, selectEdit } = useAppStore.getState();
           selectGeneration(generation.id);
           selectEdit(null);
+
+          // Note: New generation nodes start with no brush strokes (fresh canvas for editing)
 
           // Clear prompt since we've completed the operation and moved to the result
           setCurrentPrompt('');
@@ -199,7 +233,8 @@ export const useImageEditing = () => {
     selectedEditId,
     currentProject,
     seed,
-    temperature
+    temperature,
+    useRealAPI
   } = useAppStore();
 
   const editMutation = useMutation({
@@ -311,7 +346,8 @@ export const useImageEditing = () => {
         seed
       };
       
-      const images = await geminiService.editImage(request);
+      const service = useRealAPI ? falService : geminiService;
+      const images = await service.editImage(request);
       return { images, maskedReferenceImage };
     },
     onMutate: () => {
@@ -382,7 +418,8 @@ export const useImageEditing = () => {
 
         addEdit(edit);
 
-        // Clear brush strokes since they've been applied to the edit
+        // Brush strokes are now saved to the edit node, clear global state for fresh canvas
+        console.log('🧹 Clearing global brush strokes after successful edit - strokes saved to edit node');
         clearBrushStrokes();
 
         // Automatically load the edited images in the canvas and select the new edit

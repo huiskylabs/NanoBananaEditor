@@ -411,7 +411,7 @@ export const HistoryPanel: React.FC = () => {
         }
       }
     });
-  }, [currentProject, selectedGenerationId, selectedEditId]);
+  }, [currentProject]);
 
   // NOTE: Removed automatic thumbnail updates to prevent corruption
   // Thumbnails are now only created during initial node creation and explicit uploads
@@ -495,6 +495,11 @@ export const HistoryPanel: React.FC = () => {
 
   // Handle tree node click
   const handleTreeNodeClick = (node: typeof nodes[0]) => {
+    // Check if we're already on this node - if so, don't re-render
+    if (node.id === 'blank-root' && !selectedGenerationId && !selectedEditId) return;
+    if (node.type === 'generation' && selectedGenerationId === node.id) return;
+    if (node.type === 'edit' && selectedEditId === node.id) return;
+
     // Save current canvas's brush strokes before switching
     if (selectedGenerationId || selectedEditId) {
       saveBrushStrokesToCurrentCanvas();
@@ -508,14 +513,19 @@ export const HistoryPanel: React.FC = () => {
       setCurrentNodeDetails(null);
       setCurrentPrompt(''); // Clear prompt when going to blank state
     } else if (node.type === 'generation') {
+      const gen = node.data as Generation;
+
+      // Batch all updates together to minimize re-renders
       selectGeneration(node.id);
       selectEdit(null);
-      const gen = node.data as Generation;
+
+      // Only update canvas if images are different
       if (gen.outputAssets.length > 0) {
         setCanvasImages(gen.outputAssets);
       }
 
       // Load brush strokes for this canvas
+      console.log(`🔄 Loading brush strokes for generation ${node.id}`);
       loadBrushStrokesFromCanvas(node.id, 'generation');
 
       // Set current canvas details for display (don't overwrite user input)
@@ -528,19 +538,25 @@ export const HistoryPanel: React.FC = () => {
         timestamp: gen.timestamp,
         outputAssets: gen.outputAssets
       });
+
       // Pre-populate prompt with the most recent child's prompt for easy iteration
       const childPrompt = findMostRecentChildPrompt(node.id, 'generation');
       setCurrentPrompt(childPrompt || gen.prompt || '');
 
     } else {
+      const edit = node.data as Edit;
+
+      // Batch all updates together to minimize re-renders
       selectEdit(node.id);
       selectGeneration(null);
-      const edit = node.data as Edit;
+
+      // Only update canvas if images are different
       if (edit.outputAssets.length > 0) {
         setCanvasImages(edit.outputAssets);
       }
 
       // Load brush strokes for this canvas
+      console.log(`🔄 Loading brush strokes for edit ${node.id}`);
       loadBrushStrokesFromCanvas(node.id, 'edit');
 
       // Set current canvas details for display (don't overwrite user input)
@@ -550,6 +566,7 @@ export const HistoryPanel: React.FC = () => {
         timestamp: edit.timestamp,
         outputAssets: edit.outputAssets
       });
+
       // Pre-populate prompt with the most recent child's prompt for easy iteration
       const childPrompt = findMostRecentChildPrompt(node.id, 'edit');
       setCurrentPrompt(childPrompt || edit.instruction || '');

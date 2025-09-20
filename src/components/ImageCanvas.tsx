@@ -28,13 +28,32 @@ export const ImageCanvas: React.FC = () => {
     setBrushSize,
     addCanvasImage,
     reorderCanvasImages,
-    currentNodeDetails
+    currentNodeDetails,
+    setVisualGridSize
   } = useAppStore();
 
   const [isStatusExpanded, setIsStatusExpanded] = useState(false);
 
   const stageRef = useRef<any>(null);
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
+
+  // Calculate current grid size for coordinate transformations
+  const currentGridSize = useMemo(() => {
+    const gridImages = canvasImages.filter(img => img);
+    const columns = canvasGridLayout.columns;
+    // Use the SAME calculation as the drawing logic
+    const baseSize = Math.min(stageSize.width, stageSize.height) * 0.8;
+    const rows = Math.ceil(gridImages.length / canvasGridLayout.columns);
+    const maxDimension = Math.max(canvasGridLayout.columns, rows);
+    const calculatedSize = gridImages.length > 0 ? baseSize / maxDimension : 600;
+    return Math.max(300, Math.min(600, calculatedSize));
+  }, [canvasImages, canvasGridLayout.columns, stageSize.width, stageSize.height]);
+
+  // Update the visual grid size in store whenever it changes
+  useEffect(() => {
+    setVisualGridSize(currentGridSize);
+    console.log(`📐 Updated visual grid size in store: ${currentGridSize}px`);
+  }, [currentGridSize, setVisualGridSize]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<number[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -130,6 +149,7 @@ export const ImageCanvas: React.FC = () => {
 
     // Check if click is within grid bounds
     if (relativeX >= 0 && relativeX <= totalWidth && relativeY >= 0 && relativeY <= totalHeight) {
+      console.log(`🖱️ Mouse down: grid(${Math.round(relativeX)}, ${Math.round(relativeY)}) grid bounds: ${Math.round(totalWidth)}x${Math.round(totalHeight)} gridSize: ${Math.round(gridSize)}`);
       setCurrentStroke([relativeX, relativeY]);
     }
   };
@@ -162,6 +182,7 @@ export const ImageCanvas: React.FC = () => {
 
     // Check if within grid bounds
     if (relativeX >= 0 && relativeX <= totalWidth && relativeY >= 0 && relativeY <= totalHeight) {
+      console.log(`🖱️ Mouse move: grid(${Math.round(relativeX)}, ${Math.round(relativeY)})`);
       setCurrentStroke([...currentStroke, relativeX, relativeY]);
     }
   };

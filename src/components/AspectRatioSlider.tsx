@@ -15,9 +15,11 @@ const ASPECT_RATIOS: AspectRatio[] = [
 interface AspectRatioSliderProps {
   value: AspectRatio;
   onChange: (ratio: AspectRatio) => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
-export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onChange }) => {
+export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onChange, disabled = false, disabledReason }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const currentIndex = ASPECT_RATIOS.findIndex(ratio => ratio.label === value.label);
@@ -37,12 +39,22 @@ export const AspectRatioSlider: React.FC<AspectRatioSliderProps> = ({ value, onC
   };
 
   return (
-    <div className="space-y-3">
-      <div className="select-none opacity-50 text-xs flex items-center justify-start mb-3">
-        <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-sm" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-        </svg>
-        <p>Dimensions</p>
+    <div className={cn("space-y-3", disabled && "opacity-50 pointer-events-none")}>
+      <div className="select-none opacity-50 text-xs flex items-center justify-between mb-3">
+        <div className="flex items-center">
+          <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-sm" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+          <p>Dimensions</p>
+        </div>
+        {disabled && disabledReason && (
+          <div
+            className="text-xs text-zinc-400 cursor-help"
+            title={disabledReason}
+          >
+            ⓘ
+          </div>
+        )}
       </div>
 
       <div className="relative">

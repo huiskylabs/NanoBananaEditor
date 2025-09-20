@@ -36,6 +36,9 @@ interface AppState {
   // UI state
   selectedTool: 'generate' | 'edit' | 'mask';
 
+  // API Configuration
+  useRealAPI: boolean;
+
   // Current node details for display (separate from input prompt)
   currentNodeDetails: {
     prompt: string;
@@ -46,6 +49,9 @@ interface AppState {
     timestamp?: number;
     outputAssets?: Asset[];
   } | null;
+
+  // Visual grid size for coordinate transformations
+  visualGridSize: number;
 
   // Actions
   setCurrentProject: (project: Project | null) => void;
@@ -90,6 +96,10 @@ interface AppState {
   setHistoryPanelWidth: (width: number) => void;
 
   setSelectedTool: (tool: 'generate' | 'edit' | 'mask') => void;
+  setVisualGridSize: (size: number) => void;
+
+  // API Configuration actions
+  setUseRealAPI: (useReal: boolean) => void;
 
   // Brush stroke management per canvas
   saveBrushStrokesToCurrentCanvas: () => void;
@@ -125,6 +135,8 @@ export const useAppStore = create<AppState>()(
 
       selectedTool: 'generate',
       currentNodeDetails: null,
+      useRealAPI: true,
+      visualGridSize: 400, // Default visual grid size
       
       // Actions
       setCurrentProject: (project) => set({ currentProject: project }),
@@ -311,6 +323,8 @@ export const useAppStore = create<AppState>()(
 
       setCurrentNodeDetails: (details) => set({ currentNodeDetails: details }),
       setSelectedTool: (tool) => set({ selectedTool: tool }),
+      setVisualGridSize: (size) => set({ visualGridSize: size }),
+      setUseRealAPI: (useReal) => set({ useRealAPI: useReal }),
 
       // Brush stroke management per canvas
       saveBrushStrokesToCurrentCanvas: () => {
@@ -358,16 +372,21 @@ export const useAppStore = create<AppState>()(
 
       loadBrushStrokesFromCanvas: (canvasId: string, canvasType: 'generation' | 'edit') => {
         const state = get();
-        if (!state.currentProject) return;
+        if (!state.currentProject) {
+          console.log(`⚠️ No current project, cannot load brush strokes for ${canvasType} ${canvasId}`);
+          return;
+        }
 
         let canvasBrushStrokes: BrushStroke[] = [];
 
         if (canvasType === 'generation') {
           const generation = state.currentProject.generations.find(g => g.id === canvasId);
           canvasBrushStrokes = generation?.brushStrokes || [];
+          console.log(`📍 Loaded ${canvasBrushStrokes.length} brush strokes for generation ${canvasId}`);
         } else {
           const edit = state.currentProject.edits.find(e => e.id === canvasId);
           canvasBrushStrokes = edit?.brushStrokes || [];
+          console.log(`📍 Loaded ${canvasBrushStrokes.length} brush strokes for edit ${canvasId}`);
         }
 
         set({ brushStrokes: canvasBrushStrokes });

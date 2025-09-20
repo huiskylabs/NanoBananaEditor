@@ -3,7 +3,7 @@ import { Textarea } from './ui/Textarea';
 import { Button } from './ui/Button';
 import { useAppStore } from '../store/useAppStore';
 import { useImageGeneration } from '../hooks/useImageGeneration';
-import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, ChevronRight, RotateCcw, ChevronLeft } from 'lucide-react';
+import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, ChevronRight, RotateCcw, ChevronLeft, Zap } from 'lucide-react';
 import { blobToBase64, generateId } from '../utils/imageUtils';
 import { PromptHints } from './PromptHints';
 import { AspectRatioSlider } from './AspectRatioSlider';
@@ -31,6 +31,9 @@ export const PromptComposer: React.FC = () => {
     selectedAspectRatio,
     setSelectedAspectRatio,
     saveBrushStrokesToCurrentCanvas,
+    useRealAPI,
+    setUseRealAPI,
+    visualGridSize,
   } = useAppStore();
 
   const { generate } = useImageGeneration();
@@ -61,7 +64,8 @@ export const PromptComposer: React.FC = () => {
       temperature,
       seed: seed || undefined,
       brushStrokes: brushStrokes.length > 0 ? brushStrokes : undefined,
-      aspectRatio: selectedAspectRatio
+      aspectRatio: selectedAspectRatio,
+      visualGridSize: visualGridSize
     });
   };
 
@@ -257,6 +261,8 @@ export const PromptComposer: React.FC = () => {
       <AspectRatioSlider
         value={selectedAspectRatio}
         onChange={setSelectedAspectRatio}
+        disabled={canvasImages.length > 0 && useRealAPI}
+        disabledReason={canvasImages.length > 0 && useRealAPI ? "Edit API inherits dimensions from reference images" : undefined}
       />
 
       {/* Generate Button */}
@@ -324,6 +330,48 @@ export const PromptComposer: React.FC = () => {
         
         {showAdvanced && (
           <div className="mt-4 space-y-4">
+            {/* API Provider */}
+            <div>
+              <label className="text-xs font-medium text-zinc-300 mb-3 block">
+                API Provider
+              </label>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setUseRealAPI(false)}
+                  className={cn(
+                    "flex items-center space-x-2 px-3 py-2 rounded-lg border text-xs transition-colors",
+                    !useRealAPI
+                      ? "bg-zinc-800 border-zinc-600 text-zinc-100"
+                      : "bg-transparent border-zinc-700 text-zinc-400 hover:text-zinc-300"
+                  )}
+                >
+                  <div className={cn(
+                    "w-2 h-2 rounded-full",
+                    !useRealAPI ? "bg-green-500" : "bg-zinc-600"
+                  )} />
+                  <span>Mock</span>
+                </button>
+                <button
+                  onClick={() => setUseRealAPI(true)}
+                  className={cn(
+                    "flex items-center space-x-2 px-3 py-2 rounded-lg border text-xs transition-colors",
+                    useRealAPI
+                      ? "bg-zinc-800 border-zinc-600 text-zinc-100"
+                      : "bg-transparent border-zinc-700 text-zinc-400 hover:text-zinc-300"
+                  )}
+                >
+                  <Zap className={cn(
+                    "w-3 h-3",
+                    useRealAPI ? "text-orange-500" : "text-zinc-600"
+                  )} />
+                  <span>FAL AI</span>
+                </button>
+              </div>
+              <p className="text-xs text-zinc-500 mt-2">
+                {useRealAPI ? "Using real FAL AI API" : "Using mock responses for development"}
+              </p>
+            </div>
+
             {/* Temperature */}
             <div>
               <label className="text-xs font-medium text-zinc-300 mb-2 block">
@@ -339,7 +387,7 @@ export const PromptComposer: React.FC = () => {
                 className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
               />
             </div>
-            
+
             {/* Seed */}
             <div>
               <label className="text-xs font-medium text-zinc-300 mb-2 block">
