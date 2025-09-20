@@ -157,14 +157,10 @@ export const PromptComposer: React.FC = () => {
       <div className="w-8 bg-zinc-950 border-r border-zinc-800 flex flex-col items-center justify-center">
         <button
           onClick={() => setShowPromptPanel(true)}
-          className="w-6 h-16 bg-zinc-800 hover:bg-zinc-700 rounded-r-lg border border-l-0 border-zinc-700 flex items-center justify-center transition-colors group"
+          className="w-6 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-r-lg border border-l-0 border-zinc-700 flex items-center justify-center transition-colors"
           title="Show Prompt Panel"
         >
-          <div className="flex flex-col space-y-1">
-            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
-          </div>
+          <ChevronRight className="h-4 w-4 text-zinc-400 hover:text-zinc-300" />
         </button>
       </div>
     );
@@ -172,7 +168,7 @@ export const PromptComposer: React.FC = () => {
 
   return (
     <>
-    <div className="w-80 lg:w-72 xl:w-80 h-full bg-zinc-950 border-r border-zinc-800 p-6 flex flex-col space-y-6 overflow-y-auto">
+    <div className="w-80 lg:w-72 xl:w-80 h-full bg-zinc-950 border-r border-zinc-800 p-6 flex flex-col space-y-6 overflow-y-auto relative">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-zinc-100">AI Image Editor</h3>
         <div className="flex items-center space-x-1">
@@ -184,16 +180,18 @@ export const PromptComposer: React.FC = () => {
           >
             <HelpCircle className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowPromptPanel(false)}
-            className="h-6 w-6"
-            title="Hide Prompt Panel"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
         </div>
+      </div>
+
+      {/* Close button positioned to align with open button */}
+      <div className="absolute top-0 right-0 w-8 h-full flex items-center justify-center">
+        <button
+          onClick={() => setShowPromptPanel(false)}
+          className="w-6 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-l-lg border border-r-0 border-zinc-700 flex items-center justify-center transition-colors"
+          title="Hide Prompt Panel"
+        >
+          <ChevronLeft className="h-4 w-4 text-zinc-400 hover:text-zinc-300" />
+        </button>
       </div>
 
       {/* File Upload */}

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy, Target, GitBranch, ChevronRight } from 'lucide-react';
+import { History, Download, Image as ImageIcon, Layers, ZoomIn, ZoomOut, RotateCcw, Info, Copy, Target, GitBranch, ChevronRight, ChevronLeft } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { ImagePreviewModal } from './ImagePreviewModal';
 import { Stage, Layer, Image as KonvaImage, Group, Rect, Text, Line, Path } from 'react-konva';
@@ -561,14 +561,10 @@ export const HistoryPanel: React.FC = () => {
       <div className="w-8 bg-zinc-950 border-l border-zinc-800 flex flex-col items-center justify-center">
         <button
           onClick={() => setShowHistory(true)}
-          className="w-6 h-16 bg-zinc-800 hover:bg-zinc-700 rounded-l-lg border border-r-0 border-zinc-700 flex items-center justify-center transition-colors group"
+          className="w-6 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-l-lg border border-r-0 border-zinc-700 flex items-center justify-center transition-colors"
           title="Show History Panel"
         >
-          <div className="flex flex-col space-y-1">
-            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-zinc-500 group-hover:bg-zinc-400 rounded-full"></div>
-          </div>
+          <ChevronLeft className="h-4 w-4 text-zinc-400 hover:text-zinc-300" />
         </button>
       </div>
     );
@@ -576,7 +572,7 @@ export const HistoryPanel: React.FC = () => {
 
   return (
     <div
-      className="bg-zinc-950 border-l border-zinc-800 p-6 flex flex-col h-full"
+      className="bg-zinc-950 border-l border-zinc-800 p-6 flex flex-col h-full relative"
       style={{ width: `${historyPanelWidth}px` }}
     >
       {/* Header */}
@@ -665,17 +661,19 @@ export const HistoryPanel: React.FC = () => {
             >
               <ZoomIn className="h-3 w-3" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowHistory(!showHistory)}
-              className="h-6 w-6"
-              title="Hide History Panel"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
           </div>
         </div>
+
+      {/* Close button positioned to align with open button */}
+      <div className="absolute top-0 left-0 w-8 h-full flex items-center justify-center">
+        <button
+          onClick={() => setShowHistory(false)}
+          className="w-6 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-r-lg border border-l-0 border-zinc-700 flex items-center justify-center transition-colors"
+          title="Hide History Panel"
+        >
+          <ChevronRight className="h-4 w-4 text-zinc-400 hover:text-zinc-300" />
+        </button>
+      </div>
 
       {/* Tree View */}
       <div className="flex-1 flex flex-col min-h-0">
