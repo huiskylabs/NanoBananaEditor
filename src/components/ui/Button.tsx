@@ -8,7 +8,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-yellow-400 text-zinc-900 hover:bg-yellow-300 hover:shadow-sm focus-visible:ring-yellow-400 border border-transparent',
+        default: 'bg-orange-500 text-white hover:bg-orange-600 hover:shadow-sm focus-visible:ring-orange-500 border border-transparent',
         secondary: 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 hover:shadow-sm focus-visible:ring-zinc-600 border border-zinc-700 hover:border-zinc-600',
         outline: 'border border-zinc-600 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 hover:border-zinc-500 hover:shadow-sm',
         ghost: 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 border border-transparent hover:border-zinc-700',
@@ -29,7 +29,7 @@ const buttonVariants = cva(
       state: {
         default: '',
         success: 'bg-green-600 hover:bg-green-700 text-white border-green-600',
-        warning: 'bg-yellow-600 hover:bg-yellow-700 text-white border-yellow-600',
+        warning: 'bg-orange-600 hover:bg-orange-700 text-white border-orange-600',
         error: 'bg-red-600 hover:bg-red-700 text-white border-red-600',
       },
     },

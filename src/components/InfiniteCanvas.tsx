@@ -394,7 +394,7 @@ export const InfiniteCanvas: React.FC = () => {
           <div className="text-center p-8 bg-white rounded-xl shadow-xl border border-zinc-200">
             <div className="mb-6 flex justify-center">
               <div className="w-20 h-20 bg-gradient-to-br from-zinc-100 to-zinc-200 rounded-2xl border border-zinc-300 flex items-center justify-center">
-                <Sparkles className="h-10 w-10 text-yellow-600" />
+                <Sparkles className="h-10 w-10 text-orange-600" />
               </div>
             </div>
             <h2 className="text-xl font-medium text-zinc-700 mb-2">

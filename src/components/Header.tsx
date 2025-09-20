@@ -12,7 +12,7 @@ export const Header: React.FC = () => {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-500 rounded-lg flex items-center justify-center">
                 <Zap className="h-5 w-5 text-zinc-900" />
               </div>
             </div>

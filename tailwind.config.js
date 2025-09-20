@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Banana yellow accent
+        // Banana yellow accent (legacy)
         banana: {
           50: '#FFFBEB',
           100: '#FEF3C7',

@@ -168,7 +168,7 @@ export const PromptComposer: React.FC = () => {
 
   return (
     <>
-    <div className="w-80 lg:w-72 xl:w-80 h-full bg-zinc-950 border-r border-zinc-800 p-6 flex flex-col space-y-6 overflow-y-auto relative">
+    <div className="w-80 lg:w-72 xl:w-80 h-full bg-zinc-950 border-r border-zinc-800 p-6 flex flex-col space-y-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-zinc-100">AI Image Editor</h3>
         <div className="flex items-center space-x-1">
@@ -180,19 +180,18 @@ export const PromptComposer: React.FC = () => {
           >
             <HelpCircle className="h-4 w-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowPromptPanel(false)}
+            className="h-6 w-6"
+            title="Hide Prompt Panel"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      {/* Close button positioned to align with open button */}
-      <div className="absolute top-0 right-0 w-8 h-full flex items-center justify-center">
-        <button
-          onClick={() => setShowPromptPanel(false)}
-          className="w-6 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-l-lg border border-r-0 border-zinc-700 flex items-center justify-center transition-colors"
-          title="Hide Prompt Panel"
-        >
-          <ChevronLeft className="h-4 w-4 text-zinc-400 hover:text-zinc-300" />
-        </button>
-      </div>
 
       {/* File Upload */}
       <div>
@@ -244,7 +243,7 @@ export const PromptComposer: React.FC = () => {
           ) : (
             <div className={cn(
               'h-2 w-2 rounded-full mr-2',
-              currentPrompt.length < 50 ? 'bg-yellow-500' : 'bg-green-500'
+              currentPrompt.length < 50 ? 'bg-orange-500' : 'bg-green-500'
             )} />
           )}
           <span className="text-zinc-500 group-hover:text-zinc-400">

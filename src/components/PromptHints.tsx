@@ -36,7 +36,7 @@ const categoryColors = {
   subject: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
   scene: 'bg-green-500/10 border-green-500/30 text-green-400',
   action: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
-  style: 'bg-orange-500/10 border-orange-500/30 text-orange-400',
+  style: 'bg-orange-500/10 border-orange-500/30 text-orange-500',
   camera: 'bg-pink-500/10 border-pink-500/30 text-pink-400',
 };
 
@@ -75,7 +75,7 @@ export const PromptHints: React.FC<PromptHintsProps> = ({ open, onOpenChange }) 
             
             <div className="p-4 bg-zinc-800 rounded-lg border border-zinc-700 mt-6">
               <p className="text-sm text-zinc-300">
-                <strong className="text-yellow-400">Best practice:</strong> Write full sentences that describe the complete scene, 
+                <strong className="text-orange-500">Best practice:</strong> Write full sentences that describe the complete scene, 
                 not just keywords. Think "paint me a picture with words."
               </p>
             </div>

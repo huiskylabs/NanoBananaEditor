@@ -26,9 +26,9 @@ export const colorTokens = {
 
   // Interactive colors - for user actions
   interactive: {
-    primary: 'yellow-400',        // Main CTA buttons
-    primaryHover: 'yellow-300',   // Primary button hover
-    primaryText: 'zinc-900',      // Text on primary buttons
+    primary: 'orange-500',        // Main CTA buttons (Tailwind default orange)
+    primaryHover: 'orange-600',   // Primary button hover
+    primaryText: 'white',         // Text on primary buttons
     ghost: 'transparent',         // Ghost button background
     ghostHover: 'zinc-800',       // Ghost button hover
   },
@@ -36,14 +36,14 @@ export const colorTokens = {
   // Status colors - for feedback and states
   status: {
     success: 'green-500',
-    warning: 'yellow-500',
+    warning: 'orange-500',        // Using peel orange for warnings
     error: 'red-500',
     info: 'blue-500',
   },
 
   // Focus and accessibility
   focus: {
-    ring: 'yellow-400',
+    ring: 'orange-500',           // Using orange for focus rings
     ringOffset: 'zinc-950',
   }
 } as const;

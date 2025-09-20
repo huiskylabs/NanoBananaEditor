@@ -572,7 +572,7 @@ export const HistoryPanel: React.FC = () => {
 
   return (
     <div
-      className="bg-zinc-950 border-l border-zinc-800 p-6 flex flex-col h-full relative"
+      className="bg-zinc-950 border-l border-zinc-800 p-6 flex flex-col h-full"
       style={{ width: `${historyPanelWidth}px` }}
     >
       {/* Header */}
@@ -661,19 +661,18 @@ export const HistoryPanel: React.FC = () => {
             >
               <ZoomIn className="h-3 w-3" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowHistory(false)}
+              className="h-6 w-6"
+              title="Hide History Panel"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
-      {/* Close button positioned to align with open button */}
-      <div className="absolute top-0 left-0 w-8 h-full flex items-center justify-center">
-        <button
-          onClick={() => setShowHistory(false)}
-          className="w-6 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-r-lg border border-l-0 border-zinc-700 flex items-center justify-center transition-colors"
-          title="Hide History Panel"
-        >
-          <ChevronRight className="h-4 w-4 text-zinc-400 hover:text-zinc-300" />
-        </button>
-      </div>
 
       {/* Tree View */}
       <div className="flex-1 flex flex-col min-h-0">

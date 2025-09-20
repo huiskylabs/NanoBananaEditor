@@ -346,7 +346,7 @@ export const ImageCanvas: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => setShowMasks(!showMasks)}
-              className={cn(showMasks && 'bg-yellow-400/10 border-yellow-400/50')}
+              className={cn(showMasks && 'bg-orange-500/10 border-orange-500/50')}
             >
               {showMasks ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               <span className="hidden sm:inline ml-2">Masks</span>
@@ -378,7 +378,7 @@ export const ImageCanvas: React.FC = () => {
             <div className="text-center">
               <div className="mb-6 flex justify-center">
                 <div className="w-24 h-24 bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-2xl border border-zinc-700 flex items-center justify-center">
-                  <Sparkles className="h-12 w-12 text-yellow-400" />
+                  <Sparkles className="h-12 w-12 text-orange-500" />
                 </div>
               </div>
               <h2 className="text-xl font-medium text-zinc-300 mb-2">
@@ -397,7 +397,7 @@ export const ImageCanvas: React.FC = () => {
         {isGenerating && (
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/50">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mb-4" />
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4" />
               <p className="text-zinc-300">Creating your image...</p>
             </div>
           </div>
@@ -555,7 +555,7 @@ export const ImageCanvas: React.FC = () => {
                 <span className="text-green-400">{canvasImages.length} image{canvasImages.length !== 1 ? 's' : ''}</span>
               )}
               {brushStrokes.length > 0 && (
-                <span className="text-yellow-400">{brushStrokes.length} brush stroke{brushStrokes.length !== 1 ? 's' : ''}</span>
+                <span className="text-orange-500">{brushStrokes.length} brush stroke{brushStrokes.length !== 1 ? 's' : ''}</span>
               )}
               {currentNodeDetails && (
                 <>
